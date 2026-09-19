@@ -1,16 +1,5 @@
-/**
- * The diff view.
- *
- * This is the screen that proves there's an algorithm underneath rather than a
- * model guessing. It shows every field of the target request side by side
- * across runs, and what we concluded about each one:
- *
- *   tracks the input        -> param     (becomes a function argument)
- *   identical everywhere    -> static    (frozen into the client)
- *   moves on its own        -> volatile  (traced back to where it was issued)
- *
- *   npm run diff -- films
- */
+// the diff view. shows what we concluded about every field and why
+//   npm run diff -- films
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -38,7 +27,7 @@ const spec: Spec = JSON.parse(
   await readFile(join("out", `${flowName}.spec.json`), "utf8"),
 );
 
-// Input labels for the column headers — "year=2010" and so on.
+// input labels for the column headers — "year=2010" and so on
 const traceDir = join("traces", flowName);
 const traceFiles = (await readdir(traceDir))
   .filter((f) => f.startsWith("run-"))
@@ -54,13 +43,13 @@ for (const f of traceFiles) {
   );
 }
 
-// ─────────────────────────── layout ───────────────────────────
+// --- layout ---
 
 const VALUE_W = 16;
 const NAME_W = Math.max(14, ...spec.fields.map((f) => f.name.length)) + 2;
 const LOC_W = 8;
 
-/** Pad to a visible width, then colour. ANSI codes must not count toward width. */
+// pad to a visible width, then colour. ANSI codes must not count toward width
 function cell(text: string, width: number, colour = ""): string {
   const clipped =
     text.length > width - 1 ? text.slice(0, width - 2) + "…" : text;
@@ -73,7 +62,7 @@ function kindColour(kind: Field["kind"]): string {
   return C.grey;
 }
 
-/** Human-readable account of where a volatile value came from. */
+// human-readable account of where a volatile value came from
 function describeSource(source: VolatileSource | undefined): string {
   if (!source) return "no source recorded";
   if (source.kind === "timestamp") {
@@ -93,18 +82,18 @@ function describeSource(source: VolatileSource | undefined): string {
   return `from ${source.fromMethod} ${source.fromPath} · ${where}`;
 }
 
-// ─────────────────────────── render ───────────────────────────
+// --- render ---
 
 const line = "─".repeat(LOC_W + NAME_W + VALUE_W * inputs.length + 14);
 
 console.log();
-console.log(`  ${C.bold}siphon${C.reset} ${C.grey}·${C.reset} ${spec.flow}`);
+console.log(`  ${C.bold}beeline${C.reset} ${C.grey}·${C.reset} ${spec.flow}`);
 console.log(
   `  ${C.grey}${spec.target.method}${C.reset} ${spec.target.urlTemplate}`,
 );
 console.log();
 
-// Column headers: the inputs each run was driven with.
+// column headers: the inputs each run was driven with
 process.stdout.write("  " + " ".repeat(LOC_W + NAME_W));
 for (const input of inputs) {
   process.stdout.write(cell(input, VALUE_W, C.grey));
@@ -112,7 +101,7 @@ for (const input of inputs) {
 console.log();
 console.log(`  ${C.grey}${line}${C.reset}`);
 
-// Params first — they're the point. Then volatile, then the static bulk.
+// params first — they're the point. then volatile, then the static bulk
 const order = { param: 0, volatile: 1, static: 2 } as const;
 const fields = [...spec.fields].sort((a, b) => order[a.kind] - order[b.kind]);
 
@@ -137,7 +126,7 @@ for (const field of fields) {
   }
   console.log();
 
-  // Volatile fields get a second line showing where the value was born.
+  // volatile fields get a second line showing where the value was born
   if (field.kind === "volatile") {
     const indent = " ".repeat(2 + LOC_W + NAME_W);
     console.log(
@@ -149,7 +138,7 @@ for (const field of fields) {
 console.log(`  ${C.grey}${line}${C.reset}`);
 console.log();
 
-// ─────────────────────────── summary ───────────────────────────
+// --- summary ---
 
 const count = (kind: Field["kind"]) =>
   spec.fields.filter((f) => f.kind === kind).length;

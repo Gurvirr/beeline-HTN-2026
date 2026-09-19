@@ -1,11 +1,5 @@
-/**
- * Analyze: diff the captured traces and emit a protocol Spec.
- *
- *   npm run analyze -- films
- *
- * Prints the classification table — the thing worth putting on a projector —
- * and writes out/<flow>.spec.json.
- */
+// diff the traces, work out the protocol, write out/<flow>.spec.json
+//   npm run analyze -- films
 
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -33,7 +27,7 @@ const traces: Trace[] = await Promise.all(
   files.map(async (f) => JSON.parse(await readFile(join(dir, f), "utf8"))),
 );
 
-// Align the target request across runs.
+// align the target request across runs
 const targets: Exchange[] = [];
 for (const trace of traces) {
   const target = pickTarget(trace.exchanges, trace.input, trace.targetHint);
@@ -48,8 +42,8 @@ for (const trace of traces) {
   targets.push(target);
 }
 
-// If runs disagree about which endpoint mattered, the flow isn't deterministic
-// and everything downstream would be built on sand.
+// if runs disagree about which endpoint mattered, the flow isn't deterministic
+// and everything downstream would be built on sand
 const paths = new Set(targets.map((t) => `${t.method} ${t.path}`));
 if (paths.size > 1) {
   console.error(`runs disagree on the target request:\n  ${[...paths].join("\n  ")}`);
@@ -69,8 +63,8 @@ for (const field of fields) {
 
 const responseSchema = infer(targets.map((t) => t.responseBody));
 
-// Every derived field implies a request we must make first. Collapse them by
-// endpoint — one GET usually provides the cookie *and* the CSRF token.
+// every derived field implies a request we must make first. collapse them by
+// endpoint — one GET usually provides the cookie *and* the CSRF token
 const bootstrap: BootstrapStep[] = [];
 for (const field of fields) {
   const source = field.source;
@@ -108,7 +102,7 @@ function stripQuery(url: string) {
   return u.origin + u.pathname;
 }
 
-// ─────────────────────────────── report ───────────────────────────────
+// --- report ---
 
 function report(spec: Spec, traces: Trace[]) {
   const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
@@ -127,8 +121,8 @@ function report(spec: Spec, traces: Trace[]) {
   );
 
   for (const field of spec.fields) {
-    // Pad on the plain text; ANSI escapes have zero display width but count
-    // toward String.padEnd, which would shear the columns.
+    // pad on the plain text; ANSI escapes have zero display width but count
+    // toward String.padEnd, which would shear the columns
     const plain = `${field.location} ${field.name}`;
     const pad = " ".repeat(Math.max(0, width - plain.length));
     const label = `${dim(field.location)} ${field.name}${pad}`;

@@ -1,11 +1,11 @@
-# curlew
+# beeline
 
 Perform a web flow once in a browser. Get back a typed SDK that does the same
 thing over raw HTTP, with no browser at all.
 
 Most sites have no public API. Automating them today means driving a headless
 browser — seconds per call, and it breaks whenever the UI is redesigned.
-curlew watches the network while you do the thing once, works out the protocol
+beeline watches the network while you do the thing once, works out the protocol
 underneath, and compiles it into a standalone client.
 
 ## How it works

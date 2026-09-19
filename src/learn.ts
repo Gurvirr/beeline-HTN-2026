@@ -1,13 +1,5 @@
-/**
- * One command, four stages. This is what runs on stage.
- *
- *   npm run learn -- flows/films.ts
- *   npm run learn -- flows/films.ts --headed     (show the browser)
- *   npm run learn -- flows/films.ts --from-cache (skip capture, reuse traces)
- *
- * --from-cache is the demo safety net: if the venue network dies, everything
- * after capture still runs off the traces already on disk.
- */
+// one command, all four stages. this is what runs on stage
+//   npm run learn -- flows/films.ts [--headed] [--from-cache]
 
 import { spawn } from "node:child_process";
 import { basename } from "node:path";
@@ -57,8 +49,8 @@ try {
   stage(2, 4, "analyze");
   await run("src/analyze/run.ts", [flowName]);
 
-  // The diff view is the point of the demo, so it gets its own beat rather
-  // than scrolling past inside the analyze output.
+  // the diff view is the point of the demo, so it gets its own beat rather
+  // than scrolling past inside the analyze output
   await run("src/diff/run.ts", [flowName]);
 
   stage(3, 4, "synthesize");

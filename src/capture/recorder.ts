@@ -1,13 +1,7 @@
 import type { Exchange } from "../types.js";
 
-/**
- * Attaches to a Playwright page and records every request/response.
- *
- * We deliberately record *everything*, not just XHR. The analyzer needs the
- * document and script responses too — that's where CSRF tokens and session
- * cookies are born, and tracing a volatile value back to its origin is the
- * whole trick.
- */
+// records every request/response off a playwright page.
+// everything, not just xhr — csrf tokens and session cookies live in documents
 export class Recorder {
   private exchanges: Exchange[] = [];
   private pending = new Set<Promise<void>>();
@@ -19,7 +13,7 @@ export class Recorder {
   start() {
     this.started = Date.now();
     this.page.on("response", (response: any) => {
-      // Collect concurrently; stop() waits for all of these to settle.
+      // collect concurrently; stop() waits for all of these to settle
       const job = this.record(response).catch(() => {});
       this.pending.add(job);
       job.finally(() => this.pending.delete(job));
@@ -30,7 +24,7 @@ export class Recorder {
     const request = response.request();
     const url: string = request.url();
 
-    // data: and blob: URLs carry no protocol information.
+    // data: and blob: URLs carry no protocol information
     if (!/^https?:/i.test(url)) return;
 
     const parsed = new URL(url);
@@ -60,7 +54,7 @@ export class Recorder {
     });
   }
 
-  /** Wait for in-flight recordings, then return everything in wire order. */
+  // wait for in-flight recordings, then return everything in wire order
   async stop(): Promise<Exchange[]> {
     await Promise.allSettled([...this.pending]);
     return [...this.exchanges].sort((a, b) => a.t - b.t);
@@ -71,10 +65,8 @@ export class Recorder {
   }
 }
 
-/**
- * Response bodies come back as text when they're text-ish, parsed when JSON,
- * and null otherwise. We keep HTML because tokens hide in it.
- */
+// response bodies come back as text when they're text-ish, parsed when JSON,
+// and null otherwise. we keep HTML because tokens hide in it
 async function readBody(response: any): Promise<unknown> {
   const type = (await safe(() => response.headerValue("content-type"), null)) ?? "";
 
@@ -83,17 +75,15 @@ async function readBody(response: any): Promise<unknown> {
   const text = await safe(() => response.text(), null);
   if (text === null) return null;
 
-  // Don't let one enormous bundle dominate a trace file.
+  // don't let one enormous bundle dominate a trace file
   if (text.length > 2_000_000) return text.slice(0, 2_000_000);
 
   return /json/i.test(type) ? tryJson(text) : text;
 }
 
-/**
- * Request bodies become objects wherever possible, because the analyzer
- * classifies *fields* — a form post kept as one string would collapse
- * csrf_token, username and password into a single indivisible blob.
- */
+// request bodies become objects wherever possible, because the analyzer
+// classifies *fields* — a form post kept as one string would collapse
+// csrf_token, username and password into a single indivisible blob
 function parseBody(raw: string | null, contentType: string): unknown {
   if (raw === null) return null;
 
@@ -112,7 +102,7 @@ function tryJson(text: string): unknown {
   }
 }
 
-/** Playwright throws on bodies it can't reach (redirects, aborted requests). */
+// playwright throws on bodies it can't reach (redirects, aborted requests)
 async function safe<T>(fn: () => T | Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();

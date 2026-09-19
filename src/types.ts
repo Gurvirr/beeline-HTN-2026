@@ -1,155 +1,143 @@
-/**
- * Core data model.
- *
- *   Flow  ──capture──>  Trace[]  ──analyze──>  Spec  ──synth──>  client.ts
- *
- * A Trace is one recorded run of a flow with one set of inputs.
- * A Spec is the protocol we inferred by diffing several Traces.
- */
+// core data model
+// flow --capture--> traces --analyze--> spec --synth--> client.ts
 
-// ─────────────────────────────── capture ───────────────────────────────
+// --- capture ---
 
-/** One request/response exchange observed on the wire. */
+// one request/response exchange observed on the wire
 export interface Exchange {
-  /** Stable within a trace; used to reference this exchange from a Spec. */
+  // stable within a trace; used to reference this exchange from a Spec
   id: string;
-  /** ms since the flow started — lets us correlate against user actions. */
+  // ms since the flow started — lets us correlate against user actions
   t: number;
   method: string;
   url: string;
-  /** Path only, no origin or query. Used to match exchanges across runs. */
+  // path only, no origin or query. used to match exchanges across runs
   path: string;
-  /** Parsed query params. */
+  // parsed query params
   query: Record<string, string>;
   requestHeaders: Record<string, string>;
-  /** Parsed as JSON when possible, else the raw string, else null. */
+  // parsed as JSON when possible, else the raw string, else null
   requestBody: unknown;
   status: number;
   responseHeaders: Record<string, string>;
   responseBody: unknown;
-  /** Playwright resource type: xhr, fetch, document, script, ... */
+  // playwright resource type: xhr, fetch, document, script, 
   resourceType: string;
   durationMs: number;
 }
 
-/** One recorded run of a flow. */
+// one recorded run of a flow
 export interface Trace {
   runId: string;
-  /** Name of the flow that produced this. */
+  // name of the flow that produced this
   flow: string;
-  /** The inputs this run was driven with. Analyzer diffs against these. */
+  // the inputs this run was driven with. analyzer diffs against these
   input: Record<string, string>;
   origin: string;
   startedAt: string;
   exchanges: Exchange[];
-  /**
-   * Exchange id nominated by flow.pick(), if the flow supplied one. Recorded
-   * here so the analyzer depends only on traces, not on the flow module.
-   */
+  // exchange id nominated by flow.pick(), if the flow supplied one. recorded
+  // here so the analyzer depends only on traces, not on the flow module
   targetHint?: string;
-  /** Cookies present when the flow finished. */
+  // cookies present when the flow finished
   cookies: { name: string; value: string; domain: string; path: string }[];
 }
 
-/** A flow is a scripted user journey, parameterised by input. */
+// a flow is a scripted user journey, parameterised by input
 export interface Flow {
   name: string;
-  /** Page to open before running. */
+  // page to open before running
   entry: string;
-  /** Input sets to drive the flow with. Need >= 3 for useful diffing. */
+  // input sets to drive the flow with. need >= 3 for useful diffing
   inputs: Record<string, string>[];
-  /** Drive the UI. `page` is a Playwright Page, kept loose to avoid a hard dep here. */
+  // drive the UI. `page` is a Playwright Page, kept loose to avoid a hard dep here
   run: (page: any, input: Record<string, string>) => Promise<void>;
-  /**
-   * Optional: identify the request that did the real work. Given the
-   * exchanges of a run, return one id. If omitted, the analyzer guesses.
-   */
+  // optional: identify the request that did the real work. given the
+  // exchanges of a run, return one id. if omitted, the analyzer guesses
   pick?: (exchanges: Exchange[], input: Record<string, string>) => string | undefined;
 }
 
-// ─────────────────────────────── analyze ───────────────────────────────
+// --- analyze ---
 
-/**
- * How a single field behaved across runs. This classification is the
- * heart of the project.
- */
+// how a single field behaved across runs. this classification is the
+// heart of the project
 export type FieldKind =
-  /** Identical in every run. Freeze it into the generated client. */
+  // identical in every run. freeze it into the generated client
   | "static"
-  /** Tracked one of the flow inputs. Becomes a function argument. */
+  // tracked one of the flow inputs. becomes a function argument
   | "param"
-  /** Changed between runs but not with the input. Token, nonce, clock. */
+  // changed between runs but not with the input. token, nonce, clock
   | "volatile";
 
-/** Where in a request a field lives. */
+// where in a request a field lives
 export type FieldLocation = "header" | "query" | "body" | "cookie";
 
-/** How we can reproduce a volatile value without a browser. */
+// how we can reproduce a volatile value without a browser
 export type VolatileSource =
-  /** Looks like a unix timestamp. Emit Date.now(). */
+  // looks like a unix timestamp. emit Date.now()
   | { kind: "timestamp"; unit: "ms" | "s" }
-  /** Found verbatim in an earlier response. Extract it, then reuse. */
+  // found verbatim in an earlier response. extract it, then reuse
   | {
       kind: "derived";
-      /** Exchange it came from. */
+      // exchange it came from
       fromExchangeId: string;
       fromMethod: string;
       fromPath: string;
-      /** Where in that response we found it. */
+      // where in that response we found it
       via:
         | { in: "set-cookie"; cookieName: string }
         | { in: "header"; header: string }
         | { in: "json"; pointer: string }
         | { in: "html"; pattern: string };
     }
-  /** Random per request with no traceable source. The hard case. */
+  // random per request with no traceable source. the hard case
   | { kind: "unresolved"; note: string };
 
 export interface Field {
   location: FieldLocation;
-  /** Header name, query key, or dotted JSON path into the body. */
+  // header name, query key, or dotted JSON path into the body
   name: string;
   kind: FieldKind;
-  /** Observed values, one per run, in run order. */
+  // observed values, one per run, in run order
   samples: string[];
-  /** Set when kind === "param": which flow input this tracked. */
+  // set when kind === "param": which flow input this tracked
   boundTo?: string;
-  /** Set when kind === "volatile": how to reproduce it. */
+  // set when kind === "volatile": how to reproduce it
   source?: VolatileSource;
 }
 
-/** A request that must run before the target, to obtain session material. */
+// a request that must run before the target, to obtain session material
 export interface BootstrapStep {
   method: string;
   url: string;
-  /** What this step yields, keyed by the volatile field it satisfies. */
+  // what this step yields, keyed by the volatile field it satisfies
   provides: string[];
 }
 
-/** The inferred protocol. This is what synth compiles. */
+// the inferred protocol. this is what synth compiles
 export interface Spec {
   flow: string;
   origin: string;
   target: {
     method: string;
-    /** Absolute URL with :param placeholders where inputs appeared in the path. */
+    // absolute URL with :param placeholders where inputs appeared in the path
     urlTemplate: string;
   };
   fields: Field[];
   bootstrap: BootstrapStep[];
-  /** Inferred TypeScript type of the response body. */
+  // inferred TypeScript type of the response body
   responseSchema: JsonSchema;
-  /** Fields we could not reproduce. Non-empty means the client may fail. */
+  // fields we could not reproduce. non-empty means the client may fail
   unresolved: Field[];
   meta: {
     runs: number;
     generatedAt: string;
-    /** Wall time of the browser path, for the speed comparison. */
+    // wall time of the browser path, for the speed comparison
     browserMs: number;
   };
 }
 
-// ─────────────────────────────── schema ───────────────────────────────
+// --- schema ---
 
 export type JsonSchema =
   | { type: "string" | "number" | "boolean" | "null" }
@@ -157,12 +145,12 @@ export type JsonSchema =
   | { type: "object"; properties: Record<string, JsonSchema>; required: string[] }
   | { type: "unknown" };
 
-// ─────────────────────────────── verify ───────────────────────────────
+// --- verify ---
 
 export interface VerifyResult {
   ok: boolean;
   status: number;
-  /** Mismatches between the live response and the captured schema. */
+  // mismatches between the live response and the captured schema
   drift: string[];
   httpMs: number;
   browserMs: number;

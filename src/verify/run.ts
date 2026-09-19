@@ -1,13 +1,6 @@
-/**
- * Verify: run the generated client against the live endpoint with an input it
- * has never seen, and check the response still matches the captured schema.
- *
- *   npm run verify -- films year=2018
- *
- * This is the step that turns "we generated some code" into "the code works",
- * and it doubles as drift detection: when the site changes, this is what tells
- * you, precisely, what changed.
- */
+// run the generated client on a fresh input and check it still matches
+// doubles as drift detection
+//   npm run verify -- films year=2018
 
 import { readFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
@@ -25,8 +18,8 @@ const spec: Spec = JSON.parse(
   await readFile(join("out", `${flowName}.spec.json`), "utf8"),
 );
 
-// Inputs from argv, falling back to the first captured run so the command
-// works with no arguments at all.
+// inputs from argv, falling back to the first captured run so the command
+// works with no arguments at all
 const params: Record<string, string> = {};
 for (const field of spec.fields) {
   if (field.kind === "param" && field.boundTo) {
@@ -67,9 +60,9 @@ try {
 }
 
 const httpMs = Math.round(performance.now() - started);
-// A side-effect endpoint (login, redirect) has no body to match against.
-// There, a successful status *is* the result, and it was already checked by
-// the client throwing on !res.ok.
+// a side-effect endpoint (login, redirect) has no body to match against
+// there, a successful status *is* the result, and it was already checked by
+// the client throwing on !res.ok
 const sideEffectOnly = spec.responseSchema.type === "null";
 
 const drift = error
@@ -89,8 +82,8 @@ const result: VerifyResult = {
 
 report(result, params, body);
 
-// Set the code rather than calling process.exit(), which tears down libuv
-// while fetch's keep-alive socket is still open and trips an assertion.
+// set the code rather than calling process.exit(), which tears down libuv
+// while fetch's keep-alive socket is still open and trips an assertion
 process.exitCode = result.ok ? 0 : 1;
 
 function report(r: VerifyResult, params: Record<string, string>, body: unknown) {

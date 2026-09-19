@@ -1,16 +1,6 @@
-/**
- * The volatile-resolver test.
- *
- * quotes.toscrape.com is a sandbox published for scraping practice. Its login
- * page issues a CSRF token in the HTML and a session cookie on submit, which
- * is the exact shape the resolver exists to handle:
- *
- *   GET  /login   ->  csrf_token in a hidden input, session cookie set
- *   POST /login   ->  requires both
- *
- * If this works, the bootstrap chain works. It accepts any credentials, so
- * nothing here is a real account.
- */
+// resolver test. sandbox login: GET /login hands out a csrf token + session
+// cookie, POST /login needs both. if this works the bootstrap chain works.
+// takes any credentials, so nothing here is a real account
 
 import type { Flow } from "../src/types.js";
 
@@ -18,8 +8,8 @@ const flow: Flow = {
   name: "quotes-login",
   entry: "https://quotes.toscrape.com/login",
 
-  // Username is the thing we vary, so the analyzer should find it and only it.
-  // Everything else that changes between runs is session material.
+  // username is the thing we vary, so the analyzer should find it and only it
+  // everything else that changes between runs is session material
   inputs: [
     { username: "ada" },
     { username: "grace" },
@@ -31,8 +21,8 @@ const flow: Flow = {
     await page.fill("input[name='password']", "hunter2");
     await page.click("input[type='submit']");
 
-    // Logged-in pages show a Logout link. Waiting on it means a failed login
-    // surfaces as a timeout rather than a silently useless trace.
+    // logged-in pages show a Logout link. waiting on it means a failed login
+    // surfaces as a timeout rather than a silently useless trace
     await page.waitForSelector("a[href='/logout']", { timeout: 15_000 });
   },
 

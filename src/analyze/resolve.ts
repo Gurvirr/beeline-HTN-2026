@@ -1,18 +1,9 @@
 import type { Exchange, Field, Trace, VolatileSource } from "../types.js";
 import { flatten } from "./fields.js";
 
-/**
- * Volatile resolution: for a value that changes on its own, work out how to
- * reproduce it without a browser.
- *
- * The method is simple and it is the reason this works at all: a token the
- * client sends must have reached the client somehow, so it is sitting in an
- * *earlier response* in the same trace. Find it there and you have your
- * bootstrap step.
- *
- * We require the same source to be found in every run. One match is a
- * coincidence — a short value can appear anywhere in a large HTML document.
- */
+// a token the client sends had to arrive somehow, so it's in an earlier
+// response. find it there and that's your bootstrap step.
+// must match in every run — short values turn up anywhere in a big html doc
 export function resolve(
   field: Field,
   traces: Trace[],
@@ -35,7 +26,7 @@ export function resolve(
     };
   }
 
-  // All runs found a source — but is it the *same* source?
+  // all runs found a source — but is it the *same* source?
   const first = found[0]!;
   const consistent = found.every(
     (f) => f!.fromPath === first.fromPath && sameVia(f!.via, first.via),
@@ -53,14 +44,14 @@ export function resolve(
 
 type Located = Omit<Extract<VolatileSource, { kind: "derived" }>, "kind">;
 
-/** Search every response that completed before the target request fired. */
+// search every response that completed before the target request fired
 function locate(
   value: string,
   exchanges: Exchange[],
   before: number,
 ): Located | undefined {
-  // Very short values match by accident constantly. Anything under 8
-  // characters is more likely noise than a token.
+  // very short values match by accident constantly. anything under 8
+  // characters is more likely noise than a token
   if (value.length < 8) return undefined;
 
   const earlier = exchanges
@@ -101,23 +92,20 @@ function base(x: Exchange, via: Located["via"]): Located {
   return { fromExchangeId: x.id, fromMethod: x.method, fromPath: x.path, via };
 }
 
-/**
- * Build an extraction regex from the text immediately before the value.
- *
- * Anchoring on preceding context is what makes this survive the value
- * changing between runs — we capture `content="..."` rather than the token.
- */
+// build an extraction regex from the text immediately before the value
+// anchoring on preceding context is what makes this survive the value
+// changing between runs — we capture `content="..."` rather than the token
 function patternFor(document: string, value: string): string | undefined {
   const at = document.indexOf(value);
   if (at === -1) return undefined;
 
-  // Reject values that appear more than once; we can't tell which is the source.
+  // reject values that appear more than once; we can't tell which is the source
   if (document.indexOf(value, at + value.length) !== -1) return undefined;
 
   const lead = document.slice(Math.max(0, at - 60), at);
 
-  // Trim to the last structural boundary so the anchor is meaningful markup
-  // rather than an arbitrary 60-character window.
+  // trim to the last structural boundary so the anchor is meaningful markup
+  // rather than an arbitrary 60-character window
   const anchor = /[^<>\n]{0,60}$/.exec(lead)?.[0] ?? lead;
   if (anchor.trim().length < 4) return undefined;
 
@@ -138,11 +126,9 @@ function sameVia(a: Located["via"], b: Located["via"]): boolean {
   return false;
 }
 
-/**
- * Is this a clock? Unix seconds or millis, all samples recent and increasing.
- * Cheap to check and it removes a whole class of "unresolved" fields that
- * would otherwise look scary in the report.
- */
+// is this a clock? Unix seconds or millis, all samples recent and increasing
+// cheap to check and it removes a whole class of "unresolved" fields that
+// would otherwise look scary in the report
 function asTimestamp(samples: string[]): VolatileSource | undefined {
   if (!samples.every((s) => /^\d{10}$|^\d{13}$/.test(s))) return undefined;
 

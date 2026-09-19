@@ -1,11 +1,5 @@
-/**
- * Capture: drive a flow several times with different inputs, record everything.
- *
- *   npm run capture -- flows/course-catalog.ts
- *   npm run capture -- flows/course-catalog.ts --headed
- *
- * Writes traces/<flow>/run-N.json, one per input set.
- */
+// drive a flow a few times with different inputs, save the traces
+//   npm run capture -- flows/films.ts [--headed]
 
 import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -36,22 +30,16 @@ if (flow.inputs.length < 3) {
 const outDir = join("traces", flow.name);
 await mkdir(outDir, { recursive: true });
 
-/**
- * Local system Chrome for development — instant, free, and a real browser
- * fingerprint. Swap to Browserbase for the demo; the Recorder doesn't care,
- * it only needs a Playwright Page.
- *
- * `channel: "chrome"` uses the installed browser rather than Playwright's
- * bundled build, so there's nothing to download.
- */
+// system chrome for dev, browserbase for the demo. recorder just needs a page.
+// channel:"chrome" skips playwright's bundled download
 const channel = args.includes("--edge") ? "msedge" : "chrome";
 const browser = await chromium.launch({ headless: !headed, channel });
 
 console.log(`\n  ${flow.name} — ${flow.inputs.length} runs\n`);
 
 for (const [i, input] of flow.inputs.entries()) {
-  // Fresh context per run: we want session material to differ between runs so
-  // the analyzer can tell a session token apart from a constant header.
+  // fresh context per run: we want session material to differ between runs so
+  // the analyzer can tell a session token apart from a constant header
   const context = await browser.newContext();
   const page = await context.newPage();
 

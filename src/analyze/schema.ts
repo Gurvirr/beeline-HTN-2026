@@ -1,6 +1,6 @@
 import type { JsonSchema } from "../types.js";
 
-/** Infer a JSON schema from one or more example values. */
+// infer a JSON schema from one or more example values
 export function infer(values: unknown[]): JsonSchema {
   const present = values.filter((v) => v !== undefined);
   if (present.length === 0) return { type: "unknown" };
@@ -29,8 +29,8 @@ export function infer(values: unknown[]): JsonSchema {
 
     for (const key of keys) {
       properties[key] = infer(objects.map((o) => o[key]));
-      // Required only if every example had it — otherwise the generated type
-      // would lie about responses the caller will actually receive.
+      // required only if every example had it — otherwise the generated type
+      // would lie about responses the caller will actually receive
       if (objects.every((o) => key in o)) required.push(key);
     }
 
@@ -40,7 +40,7 @@ export function infer(values: unknown[]): JsonSchema {
   return { type: "unknown" };
 }
 
-/** Render a schema as a TypeScript type literal. */
+// render a schema as a TypeScript type literal
 export function toTs(schema: JsonSchema, indent = 0): string {
   const pad = "  ".repeat(indent + 1);
   const close = "  ".repeat(indent);
@@ -74,7 +74,7 @@ function safeKey(key: string) {
   return /^[A-Za-z_$][\w$]*$/.test(key) ? key : JSON.stringify(key);
 }
 
-/** Compare a live response against the captured schema. Returns drift notes. */
+// compare a live response against the captured schema. returns drift notes
 export function diff(schema: JsonSchema, value: unknown, path = "$"): string[] {
   switch (schema.type) {
     case "unknown":
@@ -89,8 +89,8 @@ export function diff(schema: JsonSchema, value: unknown, path = "$"): string[] {
         : [`${path}: expected ${schema.type}, got ${typeName(value)}`];
     case "array":
       if (!Array.isArray(value)) return [`${path}: expected array, got ${typeName(value)}`];
-      // Sampling the first element is enough to catch a renamed field without
-      // walking a thousand-item response.
+      // sampling the first element is enough to catch a renamed field without
+      // walking a thousand-item response
       return value.length ? diff(schema.items, value[0], `${path}[0]`) : [];
     case "object": {
       if (typeof value !== "object" || value === null || Array.isArray(value)) {
