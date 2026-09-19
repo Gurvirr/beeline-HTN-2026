@@ -46,21 +46,40 @@ if (!ClientClass) {
 
 const client = new ClientClass();
 
-const started = performance.now();
+// call it a few times and take the median. one sample swings 200-450ms
+// depending on whether dns and tls are already warm, which made the headline
+// speedup jump around between runs for no real reason
+const SAMPLES = 5;
+const timings: number[] = [];
 let body: unknown;
 let status = 0;
 let error: string | null = null;
 
-try {
-  if (typeof client.connect === "function") await client.connect();
-  body = await client.call(params);
-  status = 200;
-} catch (err) {
-  error = err instanceof Error ? err.message : String(err);
-  status = Number(/\b(\d{3})\b/.exec(error)?.[1] ?? 0);
+for (let i = 0; i < SAMPLES; i++) {
+  const started = performance.now();
+  try {
+    if (typeof client.connect === "function") await client.connect();
+    body = await client.call(params);
+    status = 200;
+    timings.push(performance.now() - started);
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
+    status = Number(/\b(\d{3})\b/.exec(error)?.[1] ?? 0);
+    break;
+  }
 }
 
-const httpMs = Math.round(performance.now() - started);
+// warm is the honest steady-state number: at any real volume the connection
+// is already open and the browser still reloads the page every single time.
+// we print the cold first call too so nobody has to ask
+const httpMs = timings.length ? Math.round(middle(timings)) : 0;
+const coldMs = timings.length ? Math.round(timings[0]!) : 0;
+
+function middle(xs: number[]): number {
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
 // a side-effect endpoint (login, redirect) has no body to match against
 // there, a successful status *is* the result, and it was already checked by
 // the client throwing on !res.ok
@@ -118,7 +137,7 @@ function report(r: VerifyResult, params: Record<string, string>, body: unknown) 
   }
 
   console.log();
-  console.log(`  ${bold(`${r.httpMs}ms`)} over HTTP`);
+  console.log(`  ${bold(`${r.httpMs}ms`)} over HTTP ${dim(`(warm · first call ${coldMs}ms)`)}`);
   console.log(`  ${dim(`${r.browserMs}ms via the browser`)}`);
   console.log(`  ${bold(green(`${r.speedup}x faster`))}\n`);
 }
