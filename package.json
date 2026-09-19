@@ -1,0 +1,24 @@
+{
+  "name": "siphon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Perform a web flow once. Get a typed SDK that does it over raw HTTP.",
+  "scripts": {
+    "capture": "tsx src/capture/run.ts",
+    "analyze": "tsx src/analyze/run.ts",
+    "synth": "tsx src/synth/run.ts",
+    "verify": "tsx src/verify/run.ts",
+    "typecheck": "tsc --noEmit",
+    "diff": "tsx src/diff/run.ts",
+    "learn": "tsx src/learn.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

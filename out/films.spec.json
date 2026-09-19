@@ -1,0 +1,117 @@
+{
+  "flow": "films",
+  "origin": "https://www.scrapethissite.com",
+  "target": {
+    "method": "GET",
+    "urlTemplate": "https://www.scrapethissite.com/pages/ajax-javascript/"
+  },
+  "fields": [
+    {
+      "location": "header",
+      "name": "accept",
+      "kind": "static",
+      "samples": [
+        "*/*",
+        "*/*",
+        "*/*"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "accept-language",
+      "kind": "static",
+      "samples": [
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "referer",
+      "kind": "static",
+      "samples": [
+        "https://www.scrapethissite.com/pages/ajax-javascript/",
+        "https://www.scrapethissite.com/pages/ajax-javascript/",
+        "https://www.scrapethissite.com/pages/ajax-javascript/"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "user-agent",
+      "kind": "static",
+      "samples": [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "x-requested-with",
+      "kind": "static",
+      "samples": [
+        "XMLHttpRequest",
+        "XMLHttpRequest",
+        "XMLHttpRequest"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "ajax",
+      "kind": "static",
+      "samples": [
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "year",
+      "kind": "param",
+      "samples": [
+        "2010",
+        "2012",
+        "2015"
+      ],
+      "boundTo": "year"
+    }
+  ],
+  "bootstrap": [],
+  "responseSchema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "year": {
+          "type": "number"
+        },
+        "awards": {
+          "type": "number"
+        },
+        "nominations": {
+          "type": "number"
+        },
+        "best_picture": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "year",
+        "awards",
+        "nominations"
+      ]
+    }
+  },
+  "unresolved": [],
+  "meta": {
+    "runs": 3,
+    "generatedAt": "2026-09-19T16:30:40.311Z",
+    "browserMs": 3818
+  }
+}
