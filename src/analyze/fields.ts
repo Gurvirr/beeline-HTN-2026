@@ -47,9 +47,11 @@ export function extract(exchange: Exchange): Candidate[] {
       for (const pair of value.split(";")) {
         const eq = pair.indexOf("=");
         if (eq === -1) continue;
+        const cookieName = pair.slice(0, eq).trim();
+        if (isTracking(cookieName)) continue;
         out.push({
           location: "cookie",
-          name: pair.slice(0, eq).trim(),
+          name: cookieName,
           value: pair.slice(eq + 1).trim(),
         });
       }
@@ -143,4 +145,27 @@ function largestBody(pool: Exchange[]): Exchange | undefined {
       JSON.stringify(b.responseBody ?? "").length -
       JSON.stringify(a.responseBody ?? "").length,
   )[0];
+}
+
+// analytics cookies are set by scripts on the page, never checked by the api.
+// they're unresolvable by definition and just make the output look broken
+const TRACKING = [
+  /^_ga($|_)/,
+  /^_gid$/,
+  /^_gat/,
+  /^_gcl_/,
+  /^_fbp$/,
+  /^_fbc$/,
+  /^_hj/,
+  /^_clck$/,
+  /^_clsk$/,
+  /^ajs_/,
+  /^amplitude_/,
+  /^mp_/,
+  /^intercom-/,
+  /^__utm/,
+];
+
+function isTracking(name: string): boolean {
+  return TRACKING.some((re) => re.test(name));
 }
