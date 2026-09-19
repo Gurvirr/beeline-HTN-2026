@@ -7,7 +7,7 @@
     {
       "binding": "DB",
       "database_name": "beeline",
-      "database_id": "local"
+      "database_id": "d4085e50-0c79-4bae-ba7d-67428b68737b"
     }
   ],
   "triggers": {
