@@ -1,46 +1,46 @@
 // drive a flow a few times with different inputs, save the traces
-//   npm run capture -- flows/films.ts [--headed]
+//   npm run capture -- flows/films.ts [--headed] [--cloud]
 
-import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Recorder } from "./recorder.js";
+import { launch, contextFor } from "./browser.js";
 import type { Flow, Trace } from "../types.js";
 
 const args = process.argv.slice(2);
 const flowPath = args.find((a) => !a.startsWith("--"));
 const headed = args.includes("--headed");
+const cloud = args.includes("--cloud");
 
 if (!flowPath) {
-  console.error("usage: npm run capture -- <flow file> [--headed]");
+  console.error("usage: npm run capture -- <flow file> [--headed] [--cloud]");
   process.exit(1);
 }
 
 const flow: Flow = (await import(pathToFileURL(resolve(flowPath)).href)).default;
 
 if (flow.inputs.length < 3) {
-  console.warn(
-    `! ${flow.name} has ${flow.inputs.length} input sets. ` +
-      `Three or more makes parameter inference reliable — with two, a field that ` +
-      `changed by coincidence is indistinguishable from a real parameter.`,
-  );
+  console.warn(`! ${flow.name} only has ${flow.inputs.length} inputs — 3+ is safer`);
 }
 
 const outDir = join("traces", flow.name);
 await mkdir(outDir, { recursive: true });
 
-// system chrome for dev, browserbase for the demo. recorder just needs a page.
-// channel:"chrome" skips playwright's bundled download
 const channel = args.includes("--edge") ? "msedge" : "chrome";
-const browser = await chromium.launch({ headless: !headed, channel });
 
-console.log(`\n  ${flow.name} — ${flow.inputs.length} runs\n`);
+console.log(`\n  ${flow.name} — ${flow.inputs.length} runs${cloud ? " on browserbase" : ""}\n`);
+
+const sessionUrls: string[] = [];
 
 for (const [i, input] of flow.inputs.entries()) {
-  // fresh context per run: we want session material to differ between runs so
-  // the analyzer can tell a session token apart from a constant header
-  const context = await browser.newContext();
+  // one browser per run, not one context per run. the session cookie has to
+  // differ between runs or the analyzer reads it as static and we lose the
+  // bootstrap chain
+  const launched = await launch({ cloud, headed, channel });
+  if (launched.sessionUrl) sessionUrls.push(launched.sessionUrl);
+
+  const context = await contextFor(launched);
   const page = await context.newPage();
 
   const recorder = new Recorder(page);
@@ -92,9 +92,13 @@ for (const [i, input] of flow.inputs.entries()) {
     );
   }
 
-  await context.close();
+  await launched.close();
 }
 
-await browser.close();
+console.log(`\n  wrote ${flow.inputs.length} traces to ${outDir}`);
 
-console.log(`\n  wrote ${flow.inputs.length} traces to ${outDir}\n`);
+if (sessionUrls.length) {
+  console.log(`\n  replays:`);
+  for (const url of sessionUrls) console.log(`    ${url}`);
+}
+console.log();

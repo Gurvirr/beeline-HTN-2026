@@ -5,13 +5,13 @@
   "type": "module",
   "description": "Perform a web flow once. Get a typed SDK that does it over raw HTTP.",
   "scripts": {
-    "capture": "tsx src/capture/run.ts",
-    "analyze": "tsx src/analyze/run.ts",
-    "synth": "tsx src/synth/run.ts",
-    "verify": "tsx src/verify/run.ts",
+    "capture": "tsx --env-file-if-exists=.env src/capture/run.ts",
+    "analyze": "tsx --env-file-if-exists=.env src/analyze/run.ts",
+    "synth": "tsx --env-file-if-exists=.env src/synth/run.ts",
+    "verify": "tsx --env-file-if-exists=.env src/verify/run.ts",
     "typecheck": "tsc --noEmit",
-    "diff": "tsx src/diff/run.ts",
-    "learn": "tsx src/learn.ts"
+    "diff": "tsx --env-file-if-exists=.env src/diff/run.ts",
+    "learn": "tsx --env-file-if-exists=.env src/learn.ts"
   },
   "dependencies": {
     "playwright": "^1.49.0"

@@ -11,9 +11,9 @@
       "name": "csrf_token",
       "kind": "volatile",
       "samples": [
-        "CRQoKnafdNltEJAeBTvjYXZyibcPWsxrIghpmUuGFDVkwqzOHMLS",
-        "iLfbYpPOxwHUWAseZIKTrEQytvoJGzgVDlBMChXmaFknqcSRujNd",
-        "OhAustwCPJmUZEpLecHjixGXovlSMWYqkbaVFdzIgDKyBrfRnTQN"
+        "HGDjNLmdviZrRUbYesoEMytnpfahOzcgTlWFxXIBAPQJSwKVuqCk",
+        "UmHSBzpGwcMvurqyfIZiLkjKdsThRAQxlCYNoWJXePFVbDganOEt",
+        "uFpESeILwqgOZMcGPymXzbkajTxWCYQDhnsUfrHRBVtAivKdNoJl"
       ],
       "source": {
         "kind": "derived",
@@ -52,9 +52,9 @@
       "name": "session",
       "kind": "volatile",
       "samples": [
-        "eyJjc3JmX3Rva2VuIjoiQ1JRb0tuYWZkTmx0RUpBZUJUdmpZWFp5aWJjUFdzeHJJZ2hwbVV1R0ZEVmt3cXpPSE1MUyJ9.aq65Yw.b8oDWTHVf1TnnsSjonJkBPzVLiI",
-        "eyJjc3JmX3Rva2VuIjoiaUxmYllwUE94d0hVV0FzZVpJS1RyRVF5dHZvSkd6Z1ZEbEJNQ2hYbWFGa25xY1NSdWpOZCJ9.aq65ZA.vJ7CiTEiLaoDqHo5wJOPXZi6T1k",
-        "eyJjc3JmX3Rva2VuIjoiT2hBdXN0d0NQSm1VWkVwTGVjSGppeEdYb3ZsU01XWXFrYmFWRmR6SWdES3lCcmZSblRRTiJ9.aq65ZQ.AZtlpm0c1N1Lg9AR12FVX-JE4XM"
+        "eyJjc3JmX3Rva2VuIjoiSEdEak5MbWR2aVpyUlViWWVzb0VNeXRucGZhaE96Y2dUbFdGeFhJQkFQUUpTd0tWdXFDayJ9.aq693w.xBzfUEX3LaJ7auwDlzPcngd2Nb0",
+        "eyJjc3JmX3Rva2VuIjoiVW1IU0J6cEd3Y012dXJxeWZJWmlMa2pLZHNUaFJBUXhsQ1lOb1dKWGVQRlZiRGdhbk9FdCJ9.aq695A.0sKxf1o5Z6k6HzRwFHm9m7Diy80",
+        "eyJjc3JmX3Rva2VuIjoidUZwRVNlSUx3cWdPWk1jR1B5bVh6YmthalR4V0NZUURobnNVZnJIUkJWdEFpdktkTm9KbCJ9.aq696A.DbQcHhzLi5rMW_gNen-eNhMvfP8"
       ],
       "source": {
         "kind": "derived",
@@ -132,9 +132,9 @@
       "name": "user-agent",
       "kind": "static",
       "samples": [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
       ]
     }
   ],
@@ -154,7 +154,7 @@
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-19T16:33:43.695Z",
-    "browserMs": 436
+    "generatedAt": "2026-09-19T16:53:01.495Z",
+    "browserMs": 2864
   }
 }
