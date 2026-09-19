@@ -2,7 +2,7 @@
 //   npm run ui   ->  http://localhost:4000
 
 import { createServer } from "node:http";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -20,6 +20,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/spec") return await serveJson(res, url, "spec.json");
     if (url.pathname === "/api/client") return await serveText(res, url, "client.ts");
     if (url.pathname === "/api/run") return runPipeline(res, url);
+    if (url.pathname === "/api/new") return await makeFlow(req, res);
     if (url.pathname === "/api/the-old-way") return await theOldWay(res, url);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
@@ -75,6 +76,66 @@ async function serveText(
   const body = await readFile(join("out", `${flow}.${suffix}`), "utf8");
   res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
   res.end(body);
+}
+
+// turn a url + a sentence into a flow file, so the pipeline can run on a site
+// nobody has written any code for. this is the "paste any url" path.
+async function makeFlow(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+) {
+  const body = await readJson(req);
+  const { url: target, task, values } = body as {
+    url: string;
+    task: string;
+    values: string[];
+  };
+
+  if (!target || !task || !Array.isArray(values) || values.length < 3) {
+    return json(res, { error: "need url, task, and 3 values" }, 400);
+  }
+
+  // the placeholder in the task is always {q} — one knob is enough, and it
+  // keeps the box simple for whoever is typing into it
+  const name = slug(target);
+  const file = `flows/${name}.ts`;
+
+  const source = `// made from the dashboard — ${new Date().toISOString()}
+import type { Flow } from "../src/types.js";
+
+const flow: Flow = {
+  name: ${JSON.stringify(name)},
+  entry: ${JSON.stringify(target)},
+  inputs: ${JSON.stringify(values.map((v) => ({ q: v })))},
+  task: ${JSON.stringify(task)},
+};
+export default flow;
+`;
+
+  await writeFile(file, source);
+  json(res, { flow: name, file });
+}
+
+function readJson(req: import("node:http").IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(raw || "{}"));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+function slug(u: string): string {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "").replace(/[^a-z0-9]+/gi, "-");
+  } catch {
+    return `site-${Date.now()}`;
+  }
 }
 
 // spawn the pipeline and forward its events over sse
