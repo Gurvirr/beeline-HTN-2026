@@ -50,8 +50,11 @@ export interface Flow {
   entry: string;
   // input sets to drive the flow with. need >= 3 for useful diffing
   inputs: Record<string, string>[];
-  // drive the UI. `page` is a Playwright Page, kept loose to avoid a hard dep here
-  run: (page: any, input: Record<string, string>) => Promise<void>;
+  // drive the UI yourself. `page` is a Playwright Page, kept loose here
+  run?: (page: any, input: Record<string, string>) => Promise<void>;
+  // or just say what to do and let stagehand figure it out.
+  // placeholders like {q} are filled from input. needs --cloud
+  task?: string;
   // optional: identify the request that did the real work. given the
   // exchanges of a run, return one id. if omitted, the analyzer guesses
   pick?: (exchanges: Exchange[], input: Record<string, string>) => string | undefined;

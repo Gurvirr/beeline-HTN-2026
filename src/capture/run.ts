@@ -6,6 +6,7 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Recorder } from "./recorder.js";
 import { launch, contextFor, pageFor } from "./browser.js";
+import { drive } from "./drive.js";
 import { emit } from "../events.js";
 import type { Flow, Trace } from "../types.js";
 
@@ -38,7 +39,12 @@ for (const [i, input] of flow.inputs.entries()) {
   // one browser per run, not one context per run. the session cookie has to
   // differ between runs or the analyzer reads it as static and we lose the
   // bootstrap chain
-  const launched = await launch({ cloud, headed, channel });
+  const launched = await launch({
+    cloud,
+    headed,
+    channel,
+    stagehand: !!flow.task && !flow.run,
+  });
   if (launched.sessionUrl) sessionUrls.push(launched.sessionUrl);
 
   emit({
@@ -67,7 +73,10 @@ for (const [i, input] of flow.inputs.entries()) {
 
   let failed: string | null = null;
   try {
-    await flow.run(page, input);
+    await drive(flow, input, {
+      page,
+      stagehandBrowser: launched.stagehandBrowser,
+    });
   } catch (err) {
     failed = err instanceof Error ? err.message : String(err);
   }
@@ -83,12 +92,7 @@ for (const [i, input] of flow.inputs.entries()) {
     startedAt: new Date().toISOString(),
     exchanges,
     targetHint: flow.pick?.(exchanges, input),
-    cookies: (await context.cookies()).map((c) => ({
-      name: c.name,
-      value: c.value,
-      domain: c.domain,
-      path: c.path,
-    })),
+    cookies: await readCookies(context),
   };
 
   await writeFile(
@@ -127,3 +131,18 @@ if (sessionUrls.length) {
   for (const url of sessionUrls) console.log(`    ${url}`);
 }
 console.log();
+
+// the browser can be gone by now if the flow blew up mid-run. a trace without
+// cookies is still worth keeping, so don't let this take the whole run down
+async function readCookies(context: any) {
+  try {
+    return (await context.cookies()).map((c: any) => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+    }));
+  } catch {
+    return [];
+  }
+}

@@ -15,6 +15,7 @@
     "ui": "tsx --env-file-if-exists=.env src/ui/server.ts"
   },
   "dependencies": {
+    "@browserbasehq/stagehand": "^4.1.0",
     "playwright": "^1.49.0"
   },
   "devDependencies": {

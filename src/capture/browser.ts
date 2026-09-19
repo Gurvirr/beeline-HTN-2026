@@ -7,8 +7,12 @@ export interface Launched {
   browser: Browser;
   // set for cloud runs — the live view / replay link
   sessionUrl?: string;
+  // the bare id, for anything else that wants to attach to this session
+  sessionId?: string;
   // embeddable live view, for the dashboard iframe
   liveUrl?: string;
+  // stagehand's handle on the same session, when the flow needs it to drive
+  stagehandBrowser?: any;
   close: () => Promise<void>;
 }
 
@@ -47,6 +51,9 @@ export async function launch(opts: {
   cloud: boolean;
   headed: boolean;
   channel: string;
+  // stagehand only works in sessions created with its extension, so it has to
+  // be the one that opens the session — we attach playwright afterwards
+  stagehand?: boolean;
 }): Promise<Launched> {
   if (!opts.cloud) {
     const browser = await chromium.launch({
@@ -59,7 +66,21 @@ export async function launch(opts: {
   const apiKey = process.env.BROWSERBASE_API_KEY;
   if (!apiKey) throw new Error("BROWSERBASE_API_KEY not set — check .env");
 
-  const sessionId = await createSession(apiKey);
+  let sessionId: string;
+  let stagehandBrowser: any;
+
+  if (opts.stagehand) {
+    const { browserbase } = await import("@browserbasehq/stagehand");
+    stagehandBrowser = await browserbase.launch({ apiKey });
+    if (!stagehandBrowser.sessionId) {
+      throw new Error("stagehand launched without a browserbase session id");
+    }
+    sessionId = stagehandBrowser.sessionId;
+  } else {
+    sessionId = await createSession(apiKey);
+  }
+
+  // playwright rides along on the same session purely to record traffic
   const browser = await chromium.connectOverCDP(
     `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`,
   );
@@ -67,7 +88,9 @@ export async function launch(opts: {
   return {
     browser,
     sessionUrl: `https://www.browserbase.com/sessions/${sessionId}`,
+    sessionId,
     liveUrl: await liveViewUrl(apiKey, sessionId),
+    stagehandBrowser,
     // closing the cdp connection ends the session on their side too
     close: () => browser.close(),
   };

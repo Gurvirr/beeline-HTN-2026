@@ -9,7 +9,8 @@ export type Event =
   | { type: "spec"; flow: string }
   | { type: "client"; flow: string; lines: number }
   | { type: "verified"; ok: boolean; httpMs: number; browserMs: number; speedup: number; detail: string }
-  | { type: "failed"; message: string };
+  | { type: "failed"; message: string }
+  | { type: "log"; line: string };
 
 const on = !!process.env.BEELINE_EVENTS;
 
