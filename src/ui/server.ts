@@ -29,7 +29,11 @@ const server = createServer(async (req, res) => {
 
 async function serveApp(res: import("node:http").ServerResponse) {
   const html = await readFile(join(here, "app.html"), "utf8");
-  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  res.writeHead(200, {
+    "content-type": "text/html; charset=utf-8",
+    // always serve fresh — a cached dashboard during a demo is a bad afternoon
+    "cache-control": "no-store",
+  });
   res.end(html);
 }
 
