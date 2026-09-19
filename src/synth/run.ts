@@ -71,7 +71,9 @@ console.log(
   `  ${params.length} param(s) · ${spec.bootstrap.length} bootstrap step(s)` +
     (unresolved ? ` · \x1b[31m${unresolved} field(s) hardcoded from capture\x1b[0m` : ""),
 );
-console.log(`  ${code.split("\n").length} lines\n`);
+const lineCount = code.split("\n").length;
+console.log(`  ${lineCount} lines\n`);
+emit({ type: "client", flow: spec.flow, lines: lineCount });
 
 // --- emit helpers ---
 

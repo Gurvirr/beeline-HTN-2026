@@ -89,7 +89,7 @@ const spec: Spec = {
   meta: {
     runs: traces.length,
     generatedAt: new Date().toISOString(),
-    browserMs: Math.max(...targets.map((t) => t.t)),
+    browserMs: median(targets.map((t) => t.t)),
   },
 };
 
@@ -183,9 +183,18 @@ function report(spec: Spec, traces: Trace[]) {
     );
   }
 
+  emit({ type: "spec", flow: spec.flow });
   console.log(`\n  wrote out/${spec.flow}.spec.json\n`);
 }
 
 function truncate(s: string, n = 24) {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+// median, not max — max would pick the slowest browser run and quietly
+// inflate the speedup we report
+function median(xs: number[]): number {
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
 }

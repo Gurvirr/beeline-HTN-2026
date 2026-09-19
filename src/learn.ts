@@ -1,5 +1,5 @@
 // one command, all four stages. this is what runs on stage
-//   npm run learn -- flows/films.ts [--headed] [--from-cache]
+//   npm run learn -- flows/films.ts [--headed] [--cloud] [--from-cache]
 
 import { spawn } from "node:child_process";
 import { basename } from "node:path";
@@ -7,10 +7,11 @@ import { basename } from "node:path";
 const argv = process.argv.slice(2);
 const flowPath = argv.find((a) => !a.startsWith("--"));
 const headed = argv.includes("--headed");
+const cloud = argv.includes("--cloud");
 const fromCache = argv.includes("--from-cache");
 
 if (!flowPath) {
-  console.error("usage: npm run learn -- <flow file> [--headed] [--from-cache]");
+  console.error("usage: npm run learn -- <flow file> [--headed] [--cloud] [--from-cache]");
   process.exit(1);
 }
 
@@ -43,7 +44,11 @@ try {
     console.log(`\n${G}  using cached traces — skipping capture${R}`);
   } else {
     stage(1, 4, "capture");
-    await run("src/capture/run.ts", [flowPath, ...(headed ? ["--headed"] : [])]);
+    await run("src/capture/run.ts", [
+      flowPath,
+      ...(headed ? ["--headed"] : []),
+      ...(cloud ? ["--cloud"] : []),
+    ]);
   }
 
   stage(2, 4, "analyze");

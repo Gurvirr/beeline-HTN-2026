@@ -11,7 +11,8 @@
     "verify": "tsx --env-file-if-exists=.env src/verify/run.ts",
     "typecheck": "tsc --noEmit",
     "diff": "tsx --env-file-if-exists=.env src/diff/run.ts",
-    "learn": "tsx --env-file-if-exists=.env src/learn.ts"
+    "learn": "tsx --env-file-if-exists=.env src/learn.ts",
+    "ui": "tsx --env-file-if-exists=.env src/ui/server.ts"
   },
   "dependencies": {
     "playwright": "^1.49.0"
