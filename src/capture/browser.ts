@@ -79,3 +79,11 @@ export async function contextFor(launched: Launched) {
   const existing = launched.browser.contexts()[0];
   return existing ?? (await launched.browser.newContext());
 }
+
+// same again for the tab. a browserbase session boots with a blank tab and the
+// live view follows that one, so opening a second tab means you watch an empty
+// page while the work happens somewhere you can't see
+export async function pageFor(context: any) {
+  const existing = context.pages()[0];
+  return existing ?? (await context.newPage());
+}

@@ -5,7 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Recorder } from "./recorder.js";
-import { launch, contextFor } from "./browser.js";
+import { launch, contextFor, pageFor } from "./browser.js";
 import { emit } from "../events.js";
 import type { Flow, Trace } from "../types.js";
 
@@ -50,7 +50,7 @@ for (const [i, input] of flow.inputs.entries()) {
   });
 
   const context = await contextFor(launched);
-  const page = await context.newPage();
+  const page = await pageFor(context);
 
   const recorder = new Recorder(page, (x) =>
     emit({
