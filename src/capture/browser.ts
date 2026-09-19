@@ -7,7 +7,24 @@ export interface Launched {
   browser: Browser;
   // set for cloud runs — the live view / replay link
   sessionUrl?: string;
+  // embeddable live view, for the dashboard iframe
+  liveUrl?: string;
   close: () => Promise<void>;
+}
+
+// the embeddable inspector view for a running session
+async function liveViewUrl(apiKey: string, sessionId: string) {
+  try {
+    const res = await fetch(
+      `https://api.browserbase.com/v1/sessions/${sessionId}/debug`,
+      { headers: { "x-bb-api-key": apiKey } },
+    );
+    if (!res.ok) return undefined;
+    return ((await res.json()) as { debuggerFullscreenUrl?: string })
+      .debuggerFullscreenUrl;
+  } catch {
+    return undefined;
+  }
 }
 
 // one cloud browser we can watch live and replay afterwards.
@@ -50,6 +67,7 @@ export async function launch(opts: {
   return {
     browser,
     sessionUrl: `https://www.browserbase.com/sessions/${sessionId}`,
+    liveUrl: await liveViewUrl(apiKey, sessionId),
     // closing the cdp connection ends the session on their side too
     close: () => browser.close(),
   };

@@ -8,6 +8,7 @@ import { extract, pickTarget } from "./fields.js";
 import { classify } from "./classify.js";
 import { resolve as resolveVolatile } from "./resolve.js";
 import { infer } from "./schema.js";
+import { emit } from "../events.js";
 
 const flowName = process.argv[2];
 if (!flowName) {

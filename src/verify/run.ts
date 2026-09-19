@@ -7,6 +7,7 @@ import { join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Spec, VerifyResult } from "../types.js";
 import { diff } from "../analyze/schema.js";
+import { emit } from "../events.js";
 
 const [flowName, ...rest] = process.argv.slice(2);
 if (!flowName) {
@@ -79,6 +80,15 @@ const result: VerifyResult = {
   browserMs: spec.meta.browserMs,
   speedup: Math.round((spec.meta.browserMs / Math.max(httpMs, 1)) * 10) / 10,
 };
+
+emit({
+  type: "verified",
+  ok: result.ok,
+  httpMs: result.httpMs,
+  browserMs: result.browserMs,
+  speedup: result.speedup,
+  detail: result.ok ? "schema matches" : result.drift.join("; "),
+});
 
 report(result, params, body);
 

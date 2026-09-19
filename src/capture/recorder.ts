@@ -8,7 +8,10 @@ export class Recorder {
   private started = Date.now();
   private seq = 0;
 
-  constructor(private page: any) {}
+  constructor(
+    private page: any,
+    private onExchange?: (x: Exchange) => void,
+  ) {}
 
   start() {
     this.started = Date.now();
@@ -34,7 +37,7 @@ export class Recorder {
       {},
     );
 
-    this.exchanges.push({
+    const exchange: Exchange = {
       id: `x${(this.seq++).toString().padStart(4, "0")}`,
       t: Date.now() - this.started,
       method: request.method(),
@@ -51,7 +54,10 @@ export class Recorder {
       responseBody: await readBody(response),
       resourceType: request.resourceType?.() ?? "other",
       durationMs: Math.max(0, Math.round(timing.responseEnd - timing.startTime)),
-    });
+    };
+
+    this.exchanges.push(exchange);
+    this.onExchange?.(exchange);
   }
 
   // wait for in-flight recordings, then return everything in wire order

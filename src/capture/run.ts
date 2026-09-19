@@ -6,6 +6,7 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Recorder } from "./recorder.js";
 import { launch, contextFor } from "./browser.js";
+import { emit } from "../events.js";
 import type { Flow, Trace } from "../types.js";
 
 const args = process.argv.slice(2);
@@ -40,10 +41,26 @@ for (const [i, input] of flow.inputs.entries()) {
   const launched = await launch({ cloud, headed, channel });
   if (launched.sessionUrl) sessionUrls.push(launched.sessionUrl);
 
+  emit({
+    type: "run-start",
+    run: i + 1,
+    of: flow.inputs.length,
+    input,
+    liveUrl: launched.liveUrl,
+  });
+
   const context = await contextFor(launched);
   const page = await context.newPage();
 
-  const recorder = new Recorder(page);
+  const recorder = new Recorder(page, (x) =>
+    emit({
+      type: "exchange",
+      run: i + 1,
+      method: x.method,
+      path: x.path,
+      status: x.status,
+    }),
+  );
   recorder.start();
 
   await page.goto(flow.entry, { waitUntil: "domcontentloaded" });
@@ -91,6 +108,14 @@ for (const [i, input] of flow.inputs.entries()) {
       `  run ${i + 1}  ${label}  ${exchanges.length} exchanges  ${elapsed}ms`,
     );
   }
+
+  emit({
+    type: "run-done",
+    run: i + 1,
+    exchanges: exchanges.length,
+    ms: elapsed,
+    sessionUrl: launched.sessionUrl,
+  });
 
   await launched.close();
 }

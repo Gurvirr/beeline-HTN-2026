@@ -5,6 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Field, Spec } from "../types.js";
 import { toTs } from "../analyze/schema.js";
+import { emit } from "../events.js";
 
 const flowName = process.argv[2];
 if (!flowName) {
