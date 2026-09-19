@@ -9,10 +9,12 @@
 //   GET  /apis/:name    one api, with its check history
 //   GET  /call/:name    actually call it
 //   POST /check/:name   check it right now
+//   POST /heal/:name    relearn the shape if that is all that changed
+//   DEL  /apis/:name    forget one
 //   GET  /              status
 
 import { execute } from "../../src/runtime/execute.js";
-import { diff } from "../../src/analyze/schema.js";
+import { diff, infer } from "../../src/analyze/schema.js";
 import type { Spec } from "../../src/types.js";
 
 interface Env {
@@ -32,9 +34,12 @@ export default {
       }
       if (head === "apis" && request.method === "POST") return await register(request, env);
       if (head === "apis" && !tail) return await listApis(env);
+      if (head === "apis" && tail && request.method === "DELETE")
+        return await forget(env, tail);
       if (head === "apis" && tail) return await showApi(env, tail);
       if (head === "call" && tail) return await call(env, tail, url);
       if (head === "check" && tail) return await checkOne(env, tail);
+      if (head === "heal" && tail) return await healOne(env, tail);
     } catch (err) {
       return json({ error: String(err instanceof Error ? err.message : err) }, 500);
     }
@@ -46,7 +51,11 @@ export default {
   async scheduled(_event: ScheduledController, env: Env) {
     const { results } = await env.DB.prepare("select name from apis").all<{ name: string }>();
     for (const row of results ?? []) {
-      await runCheck(env, row.name).catch(() => {});
+      const outcome = await runCheck(env, row.name).catch(() => null);
+      // the site moved but we can still reach it — relearn the shape ourselves
+      if (outcome && outcome.status === "drifted") {
+        await heal(env, row.name).catch(() => {});
+      }
     }
   },
 };
@@ -114,6 +123,15 @@ async function showApi(env: Env, name: string) {
   return json({ ...rest, history: results ?? [] });
 }
 
+// so a demo can be run twice without leftovers
+async function forget(env: Env, name: string) {
+  await env.DB.batch([
+    env.DB.prepare("delete from checks where api = ?").bind(name),
+    env.DB.prepare("delete from apis where name = ?").bind(name),
+  ]);
+  return json({ forgot: name });
+}
+
 async function call(env: Env, name: string, url: URL) {
   const spec = await loadSpec(env, name);
   if (!spec) return json({ error: `never learned "${name}"` }, 404);
@@ -175,6 +193,62 @@ async function runCheck(env: Env, name: string) {
   ]);
 
   return { api: name, ok, status: state, httpStatus, ms, drift };
+}
+
+async function healOne(env: Env, name: string) {
+  const outcome = await heal(env, name);
+  if (!outcome) return json({ error: `never learned "${name}"` }, 404);
+  return json(outcome);
+}
+
+// self-repair, for the case we can actually repair.
+//
+// if the request still works and only the response shape moved, nothing about
+// *how to ask* is wrong — the schema we learned is just out of date. re-infer
+// it from what the site returns now and carry on.
+//
+// if the request itself broke (auth changed, endpoint moved) there is nothing
+// to infer from and it needs a real re-capture, which needs a browser.
+async function heal(env: Env, name: string) {
+  const spec = await loadSpec(env, name);
+  if (!spec) return null;
+
+  const params: Record<string, string> = {};
+  for (const f of spec.fields) {
+    if (f.kind === "param" && f.boundTo) params[f.boundTo] = f.samples[0] ?? "";
+  }
+
+  const result = await execute(spec, params);
+
+  if (result.status >= 400) {
+    return {
+      api: name,
+      healed: false,
+      reason: `the request itself is failing (http ${result.status}) — needs a re-capture, not a reshape`,
+    };
+  }
+
+  const before = spec.responseSchema;
+  const after = infer([result.body]);
+  const changes = diff(before, result.body);
+
+  if (changes.length === 0) {
+    return { api: name, healed: false, reason: "nothing to fix — shape still matches" };
+  }
+
+  spec.responseSchema = after;
+  const now = new Date().toISOString();
+
+  await env.DB.batch([
+    env.DB
+      .prepare("update apis set spec = ?, status = 'healthy', checked_at = ?, note = ? where name = ?")
+      .bind(JSON.stringify(spec), now, `healed: ${changes.join("; ")}`, name),
+    env.DB
+      .prepare("insert into checks (api, ts, ok, status, ms, drift) values (?, ?, 1, ?, ?, ?)")
+      .bind(name, now, result.status, result.ms, `healed: ${changes.join("; ")}`),
+  ]);
+
+  return { api: name, healed: true, changes, note: "schema relearned from the live response" };
 }
 
 async function loadSpec(env: Env, name: string): Promise<Spec | null> {
