@@ -3,6 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { basename } from "node:path";
+import { emit } from "./events.js";
 
 const argv = process.argv.slice(2);
 const flowPath = argv.find((a) => !a.startsWith("--"));
@@ -34,6 +35,7 @@ function run(script: string, args: string[]): Promise<void> {
 }
 
 function stage(n: number, total: number, label: string) {
+  emit({ type: "stage", name: label, n, of: total });
   console.log(`\n${G}  ── ${n}/${total} ${R}${B}${label}${R}`);
 }
 
