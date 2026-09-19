@@ -1,0 +1,17 @@
+{
+  "name": "beeline-brain",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "beeline",
+      "database_id": "local"
+    }
+  ],
+  "triggers": {
+    // every 15 minutes, re-check everything it has learned
+    "crons": ["*/15 * * * *"]
+  }
+}

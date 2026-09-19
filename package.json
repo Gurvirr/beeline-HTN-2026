@@ -12,13 +12,15 @@
     "typecheck": "tsc --noEmit",
     "diff": "tsx --env-file-if-exists=.env src/diff/run.ts",
     "learn": "tsx --env-file-if-exists=.env src/learn.ts",
-    "ui": "tsx --env-file-if-exists=.env src/ui/server.ts"
+    "ui": "tsx --env-file-if-exists=.env src/ui/server.ts",
+    "deploy": "tsx --env-file-if-exists=.env src/deploy/run.ts"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^4.1.0",
     "playwright": "^1.49.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260919.1",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"

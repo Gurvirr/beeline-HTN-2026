@@ -19,6 +19,7 @@ const COMMANDS = {
   synth: "src/synth/run.ts",
   verify: "src/verify/run.ts",
   ui: "src/ui/server.ts",
+  deploy: "src/deploy/run.ts",
 };
 
 if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
@@ -31,12 +32,21 @@ if (cmd === "flows" || cmd === "ls") {
   process.exit(0);
 }
 
-const script = COMMANDS[cmd];
-if (!script) {
-  console.error(`unknown command: ${cmd}`);
-  usage();
-  process.exit(1);
+// brain commands all route to one script with the action as the first arg
+const BRAIN_CMDS = ["remember", "health", "check"];
+if (BRAIN_CMDS.includes(cmd)) {
+  run("src/brain/run.ts", [cmd, ...rest]);
+} else {
+  const script = COMMANDS[cmd];
+  if (!script) {
+    console.error(`unknown command: ${cmd}`);
+    usage();
+    process.exit(1);
+  }
+  main(script);
 }
+
+function main(script) {
 
 // learn and capture want a path; everything else wants the bare name
 const args = rest.map((a) => {
@@ -55,12 +65,17 @@ if (named && cmd !== "ui" && !flows().includes(named) && !existsSync(named)) {
   process.exit(1);
 }
 
-const child = spawn(
-  "npx",
-  ["tsx", "--env-file-if-exists=.env", join(root, script), ...args],
-  { stdio: "inherit", cwd: root, shell: process.platform === "win32" },
-);
-child.on("exit", (code) => process.exit(code ?? 0));
+  run(script, args);
+}
+
+function run(rel, argv) {
+  const child = spawn(
+    "npx",
+    ["tsx", "--env-file-if-exists=.env", join(root, rel), ...argv],
+    { stdio: "inherit", cwd: root, shell: process.platform === "win32" },
+  );
+  child.on("exit", (code) => process.exit(code ?? 0));
+}
 
 function flows() {
   const dir = join(root, "flows");
@@ -75,7 +90,13 @@ function usage() {
   ${C.bold}beeline${C.r} ${C.dim}— use a site once, get an sdk that does it without a browser${C.r}
 
   ${C.cyan}beeline learn <flow>${C.r}     capture, analyze, synthesize, verify
+  ${C.cyan}beeline deploy <flow>${C.r}    put the client behind a public url
   ${C.cyan}beeline ui${C.r}               open the dashboard
+
+  ${C.dim}the brain — remembers apis and keeps checking them${C.r}
+  ${C.cyan}beeline remember <flow>${C.r}  teach it an api
+  ${C.cyan}beeline health${C.r}           what it knows, and what has drifted
+  ${C.cyan}beeline check <flow>${C.r}     go look right now
 
   ${C.dim}beeline capture <flow>   record the flow only
   beeline analyze <flow>   diff the recordings into a spec
