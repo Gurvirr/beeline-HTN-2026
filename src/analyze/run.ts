@@ -31,7 +31,7 @@ const traces: Trace[] = await Promise.all(
 // align the target request across runs
 const targets: Exchange[] = [];
 for (const trace of traces) {
-  const target = pickTarget(trace.exchanges, trace.input, trace.targetHint);
+  const target = pickTarget(trace.exchanges, trace.input, trace.targetHint, trace.origin);
   if (!target) {
     console.error(
       `no candidate request found in ${trace.runId}.\n` +

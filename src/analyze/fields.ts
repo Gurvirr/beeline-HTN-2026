@@ -99,10 +99,19 @@ export function pickTarget(
   exchanges: Exchange[],
   input: Record<string, string>,
   hint?: string,
+  origin?: string,
 ): Exchange | undefined {
   if (hint) {
     const hinted = exchanges.find((x) => x.id === hint);
     if (hinted) return hinted;
+  }
+
+  // the endpoint we want is the site's own. a busy page fires hundreds of
+  // requests at ad networks, consent vendors and analytics — none of which
+  // are ever the thing the user asked for
+  if (origin) {
+    const own = exchanges.filter((x) => x.url.startsWith(origin));
+    if (own.length) exchanges = own;
   }
 
   // 3xx counts: a form POST that redirects on success is still the request

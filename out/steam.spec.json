@@ -1,0 +1,311 @@
+{
+  "flow": "steam",
+  "origin": "https://store.steampowered.com",
+  "target": {
+    "method": "GET",
+    "urlTemplate": "https://store.steampowered.com/search/results/"
+  },
+  "fields": [
+    {
+      "location": "cookie",
+      "name": "app_impressions",
+      "kind": "volatile",
+      "samples": [
+        "2967870@1_7_7_151_150_1|1690190@1_7_7_151_150_1|2262970@1_7_7_151_150_1|4327940@1_7_7_151_150_1|617090@1_7_7_151_150_1|3082020@1_7_7_151_150_1|1178460@1_7_7_151_150_1|1679220@1_7_7_151_150_1|1255980@1_7_7_151_150_1|1113550@1_7_7_151_150_1|601360@1_7_7_151_150_1|374040@1_7_7_151_150_1|620@1_7_7_151_150_1|400@1_7_7_151_150_1",
+        "",
+        "3992470@1_7_7_151_150_1|1240680@1_7_7_151_150_1|2447330@1_7_7_151_150_1|4524240@1_7_7_151_150_1|3992460@1_7_7_151_150_1|1496530@1_7_7_151_150_1|826460@1_7_7_151_150_1|3135730@1_7_7_151_150_1|4516620@1_7_7_151_150_1|2950840@1_7_7_151_150_1|1206340@1_7_7_151_150_1|755800@1_7_7_151_150_1|1145350@1_7_7_151_150_1|1145360@1_7_7_151_150_1"
+      ],
+      "source": {
+        "kind": "unresolved",
+        "note": "present in 2/3 runs"
+      }
+    },
+    {
+      "location": "cookie",
+      "name": "browserid",
+      "kind": "volatile",
+      "samples": [
+        "258549293781497328",
+        "278815492104685456",
+        "303585290056264756"
+      ],
+      "source": {
+        "kind": "derived",
+        "fromExchangeId": "x0000",
+        "fromMethod": "GET",
+        "fromPath": "/search/",
+        "via": {
+          "in": "set-cookie",
+          "cookieName": "steamCountry"
+        }
+      }
+    },
+    {
+      "location": "cookie",
+      "name": "sessionid",
+      "kind": "volatile",
+      "samples": [
+        "d2041c896592788b366a7d44",
+        "24d0be4f90d14bac53eded98",
+        "909a8d45a80e3941a833c7ec"
+      ],
+      "source": {
+        "kind": "derived",
+        "fromExchangeId": "x0113",
+        "fromMethod": "GET",
+        "fromPath": "/search/",
+        "via": {
+          "in": "html",
+          "pattern": "\tvar g_sessionID = \"([^\"'<\\s]+)"
+        }
+      }
+    },
+    {
+      "location": "cookie",
+      "name": "steamCountry",
+      "kind": "volatile",
+      "samples": [
+        "US%7Cfd604164a9d5305f17ebec218254b106",
+        "US%7Cc842a33c9f771574bc2ee23d93382930",
+        "US%7Cfd604164a9d5305f17ebec218254b106"
+      ],
+      "source": {
+        "kind": "derived",
+        "fromExchangeId": "x0000",
+        "fromMethod": "GET",
+        "fromPath": "/search/",
+        "via": {
+          "in": "set-cookie",
+          "cookieName": "steamCountry"
+        }
+      }
+    },
+    {
+      "location": "cookie",
+      "name": "timezoneOffset",
+      "kind": "static",
+      "samples": [
+        "-25200,0",
+        "-25200,0",
+        "-25200,0"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "accept",
+      "kind": "static",
+      "samples": [
+        "text/javascript, text/html, application/xml, text/xml, */*",
+        "text/javascript, text/html, application/xml, text/xml, */*",
+        "text/javascript, text/html, application/xml, text/xml, */*"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "accept-language",
+      "kind": "static",
+      "samples": [
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "referer",
+      "kind": "param",
+      "samples": [
+        "https://store.steampowered.com/search/?term=portal",
+        "https://store.steampowered.com/search/?term=stardew",
+        "https://store.steampowered.com/search/?term=hades"
+      ],
+      "boundTo": "term"
+    },
+    {
+      "location": "header",
+      "name": "user-agent",
+      "kind": "static",
+      "samples": [
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "x-prototype-version",
+      "kind": "static",
+      "samples": [
+        "1.7",
+        "1.7",
+        "1.7"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "x-requested-with",
+      "kind": "static",
+      "samples": [
+        "XMLHttpRequest",
+        "XMLHttpRequest",
+        "XMLHttpRequest"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "count",
+      "kind": "static",
+      "samples": [
+        "50",
+        "50",
+        "50"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "dynamic_data",
+      "kind": "static",
+      "samples": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "location": "query",
+      "name": "hwtype",
+      "kind": "static",
+      "samples": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "infinite",
+      "kind": "static",
+      "samples": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "query",
+      "kind": "static",
+      "samples": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "location": "query",
+      "name": "snr",
+      "kind": "static",
+      "samples": [
+        "1_7_7_151_7",
+        "1_7_7_151_7",
+        "1_7_7_151_7"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "sort_by",
+      "kind": "static",
+      "samples": [
+        "_ASC",
+        "_ASC",
+        "_ASC"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "start",
+      "kind": "static",
+      "samples": [
+        "50",
+        "50",
+        "50"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "supportedlang",
+      "kind": "static",
+      "samples": [
+        "english",
+        "english",
+        "english"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "term",
+      "kind": "param",
+      "samples": [
+        "portal",
+        "stardew",
+        "hades"
+      ],
+      "boundTo": "term"
+    }
+  ],
+  "bootstrap": [
+    {
+      "method": "GET",
+      "url": "https://store.steampowered.com/search/",
+      "provides": [
+        "browserid",
+        "sessionid",
+        "steamCountry"
+      ]
+    }
+  ],
+  "responseSchema": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "number"
+      },
+      "results_html": {
+        "type": "string"
+      },
+      "total_count": {
+        "type": "number"
+      },
+      "start": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "success",
+      "results_html",
+      "total_count",
+      "start"
+    ]
+  },
+  "unresolved": [
+    {
+      "location": "cookie",
+      "name": "app_impressions",
+      "kind": "volatile",
+      "samples": [
+        "2967870@1_7_7_151_150_1|1690190@1_7_7_151_150_1|2262970@1_7_7_151_150_1|4327940@1_7_7_151_150_1|617090@1_7_7_151_150_1|3082020@1_7_7_151_150_1|1178460@1_7_7_151_150_1|1679220@1_7_7_151_150_1|1255980@1_7_7_151_150_1|1113550@1_7_7_151_150_1|601360@1_7_7_151_150_1|374040@1_7_7_151_150_1|620@1_7_7_151_150_1|400@1_7_7_151_150_1",
+        "",
+        "3992470@1_7_7_151_150_1|1240680@1_7_7_151_150_1|2447330@1_7_7_151_150_1|4524240@1_7_7_151_150_1|3992460@1_7_7_151_150_1|1496530@1_7_7_151_150_1|826460@1_7_7_151_150_1|3135730@1_7_7_151_150_1|4516620@1_7_7_151_150_1|2950840@1_7_7_151_150_1|1206340@1_7_7_151_150_1|755800@1_7_7_151_150_1|1145350@1_7_7_151_150_1|1145360@1_7_7_151_150_1"
+      ],
+      "source": {
+        "kind": "unresolved",
+        "note": "present in 2/3 runs"
+      }
+    }
+  ],
+  "meta": {
+    "runs": 3,
+    "generatedAt": "2026-09-19T19:34:44.676Z",
+    "browserMs": 3492
+  }
+}

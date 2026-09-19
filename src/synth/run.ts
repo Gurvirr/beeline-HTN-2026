@@ -93,8 +93,19 @@ function bootstrapMethod(spec: Spec): string {
   const steps = spec.bootstrap
     .map((step) => {
       const fields = derived.filter((f) => step.provides.includes(f.name));
+      const seen = new Set<string>();
       const extracts = fields
         .map((f) => {
+          // two fields can resolve to the same cookie or token; emit the
+          // extraction once or the client repeats itself
+          const src0 = f.source;
+          const key =
+            src0?.kind === "derived" && src0.via.in === "set-cookie"
+              ? `cookie:${src0.via.cookieName}`
+              : `field:${f.name}`;
+          if (seen.has(key)) return "";
+          seen.add(key);
+
           const src = f.source!;
           if (src.kind !== "derived") return "";
           switch (src.via.in) {
