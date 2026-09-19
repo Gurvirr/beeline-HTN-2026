@@ -25,7 +25,11 @@ export default {
     const [, head, tail] = url.pathname.split("/");
 
     try {
-      if (!head) return await status(env, url);
+      if (!head) {
+        // curl wants json, a judge on a projector wants something to look at
+        const wantsHtml = (request.headers.get("accept") ?? "").includes("text/html");
+        return wantsHtml ? await page(env, url) : await status(env, url);
+      }
       if (head === "apis" && request.method === "POST") return await register(request, env);
       if (head === "apis" && !tail) return await listApis(env);
       if (head === "apis" && tail) return await showApi(env, tail);
@@ -178,6 +182,123 @@ async function loadSpec(env: Env, name: string): Promise<Spec | null> {
     .bind(name)
     .first<{ spec: string }>();
   return row ? (JSON.parse(row.spec) as Spec) : null;
+}
+
+// the status page. same data as GET / with curl, laid out for humans
+async function page(env: Env, url: URL) {
+  const { results } = await env.DB.prepare(
+    `select name, origin, target, learned_at, status, checked_at, note, spec
+     from apis order by name`,
+  ).all<Record<string, string>>();
+
+  const apis = results ?? [];
+  const healthy = apis.filter((a) => a.status === "healthy").length;
+  const attention = apis.filter((a) => a.status !== "healthy" && a.status !== "unknown").length;
+
+  const rows = apis.length
+    ? apis
+        .map((a) => {
+          const params = paramsOf(a.spec as string | undefined);
+          return `
+      <div class="api ${a.status}">
+        <div class="dot"></div>
+        <div class="body">
+          <div class="name">${esc(a.name)}</div>
+          <a class="target" href="${esc(a.target)}">${esc(a.target)}</a>
+          ${a.note ? `<div class="note">${esc(a.note)}</div>` : ""}
+          <div class="try">${esc(url.origin)}/call/${esc(a.name)}${params}</div>
+        </div>
+        <div class="meta">
+          <div class="state">${esc(a.status)}</div>
+          <div class="when">${a.checked_at ? ago(a.checked_at) : "never checked"}</div>
+        </div>
+      </div>`;
+        })
+        .join("")
+    : `<div class="empty">nothing learned yet — <code>beeline remember &lt;flow&gt;</code></div>`;
+
+  const html = `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>beeline brain</title>
+<style>
+  :root{--bg:#0b0e12;--panel:#12171d;--line:#232c36;--ink:#e6edf3;--dim:#7d8b99;
+    --cyan:#3fd8e8;--green:#4ade80;--amber:#f2b13c;--red:#f87171;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+    font-size:13px;line-height:1.55;padding:32px 20px}
+  .wrap{max-width:820px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 4px;letter-spacing:-.02em}
+  h1 em{color:var(--cyan);font-style:normal}
+  .sub{color:var(--dim);margin:0 0 24px;max-width:60ch}
+  .stats{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:5px;overflow:hidden;margin-bottom:22px}
+  .stat{flex:1;background:var(--panel);padding:13px 16px}
+  .stat .n{font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .stat .l{color:var(--dim);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+  .stat.ok .n{color:var(--green)} .stat.warn .n{color:var(--amber)}
+  .api{display:flex;gap:13px;align-items:flex-start;background:var(--panel);
+    border:1px solid var(--line);border-radius:5px;padding:14px 16px;margin-bottom:8px}
+  .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:var(--dim)}
+  .api.healthy .dot{background:var(--green)}
+  .api.drifted .dot{background:var(--amber)}
+  .api.broken .dot{background:var(--red)}
+  .body{flex:1;min-width:0}
+  .name{font-weight:600;font-size:14px}
+  .target,.try{color:var(--dim);font-size:11.5px;word-break:break-all;display:block}
+  .target{text-decoration:none}
+  .target:hover{color:var(--cyan)}
+  .try{margin-top:5px;color:var(--cyan);opacity:.85}
+  .note{color:var(--amber);font-size:11.5px;margin-top:3px}
+  .meta{text-align:right;flex-shrink:0}
+  .state{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .when{color:var(--dim);font-size:11px;opacity:.7}
+  .empty{color:var(--dim);padding:26px;text-align:center;background:var(--panel);
+    border:1px solid var(--line);border-radius:5px}
+  code{background:#1a232c;padding:1px 5px;border-radius:3px}
+  footer{color:var(--dim);font-size:11.5px;margin-top:24px;padding-top:16px;
+    border-top:1px solid var(--line)}
+</style></head><body><div class="wrap">
+  <h1>bee<em>line</em> brain</h1>
+  <p class="sub">every api beeline has learned by watching a browser once. it keeps
+  calling them to check the sites still behave the way they did.</p>
+  <div class="stats">
+    <div class="stat"><div class="n">${apis.length}</div><div class="l">remembered</div></div>
+    <div class="stat ok"><div class="n">${healthy}</div><div class="l">healthy</div></div>
+    <div class="stat warn"><div class="n">${attention}</div><div class="l">drifted</div></div>
+  </div>
+  ${rows}
+  <footer>re-checks everything every 15 minutes &middot; <code>curl ${esc(url.origin)}/apis</code> for json</footer>
+</div></body></html>`;
+
+  return new Response(html, {
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+function paramsOf(spec?: string): string {
+  if (!spec) return "";
+  try {
+    const parsed = JSON.parse(spec) as Spec;
+    const names = [
+      ...new Set(parsed.fields.filter((f) => f.kind === "param" && f.boundTo).map((f) => f.boundTo!)),
+    ];
+    return names.length ? `?${names.map((n) => `${n}=...`).join("&")}` : "";
+  } catch {
+    return "";
+  }
+}
+
+function ago(iso: string): string {
+  const secs = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+
+function esc(s: unknown): string {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
 function json(body: unknown, status = 200): Response {
