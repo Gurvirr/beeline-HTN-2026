@@ -5,13 +5,13 @@
   "extraction": {
     "item": "a.group.cursor-pointer.rounded-sm",
     "fields": {
-      "title": "p@0",
-      "repo_count": "p@1",
+      "name": "p@0",
+      "metric": "p@1",
       "description": "p@2",
       "author": "p@3"
     },
     "found": 40,
-    "why": "repository search results"
+    "why": "repository-style result cards"
   },
   "target": {
     "method": "GET",
@@ -24,10 +24,10 @@
     "items": {
       "type": "object",
       "properties": {
-        "title": {
+        "name": {
           "type": "string"
         },
-        "repo_count": {
+        "metric": {
           "type": "string"
         },
         "description": {
@@ -38,8 +38,8 @@
         }
       },
       "required": [
-        "title",
-        "repo_count",
+        "name",
+        "metric",
         "description",
         "author"
       ]
@@ -48,7 +48,7 @@
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-20T03:03:04.474Z",
-    "browserMs": 3266
+    "generatedAt": "2026-09-20T03:07:43.549Z",
+    "browserMs": 2426
   }
 }

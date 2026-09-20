@@ -6,6 +6,7 @@
 // into it.
 
 import type { Field, Spec } from "../types.js";
+import { extract } from "../analyze/extract.js";
 
 export interface RunResult {
   status: number;
@@ -18,6 +19,15 @@ export async function execute(
   params: Record<string, string>,
 ): Promise<RunResult> {
   const started = Date.now();
+
+  // no endpoint was ever found for this one — the data is in the page. fetch it
+  // and run the same extraction the generated client would.
+  if (spec.mode === "html" && spec.extraction) {
+    const res = await fetch(spec.target.urlTemplate);
+    const rows = extract(await res.text(), spec.extraction);
+    return { status: res.status, body: rows, ms: Date.now() - started };
+  }
+
   const session: Record<string, string> = {};
   const cookies: Record<string, string> = {};
 

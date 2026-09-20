@@ -7,6 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { plan } from "../capture/plan.js";
+import { execute } from "../runtime/execute.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4000);
@@ -22,6 +23,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/client") return await serveText(res, url, "client.ts");
     if (url.pathname === "/api/run") return runPipeline(res, url);
     if (url.pathname === "/api/new") return await makeFlow(req, res);
+    if (url.pathname === "/api/try") return await tryIt(res, url);
     if (url.pathname === "/api/the-old-way") return await theOldWay(res, url);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
@@ -81,6 +83,28 @@ async function serveText(
 
 // turn a sentence into a flow file, so the pipeline can run against a site
 // nobody has written any code for. this is the "paste any url" path.
+// run the api we just learned, here and now. the brain gives you a public url,
+// but that needs a deploy — and the point of the panel is to show the thing
+// works the second it is built.
+async function tryIt(res: import("node:http").ServerResponse, url: URL) {
+  const flow = url.searchParams.get("flow");
+  if (!flow) return json(res, { error: "need a flow" }, 400);
+
+  const spec = JSON.parse(
+    await readFile(join("out", `${flow}.spec.json`), "utf8"),
+  );
+
+  const params: Record<string, string> = {};
+  for (const [k, v] of url.searchParams) if (k !== "flow") params[k] = v;
+
+  try {
+    const out = await execute(spec, params);
+    json(res, { status: out.status, ms: out.ms, data: out.body });
+  } catch (err) {
+    json(res, { error: err instanceof Error ? err.message : String(err) }, 502);
+  }
+}
+
 async function makeFlow(
   req: import("node:http").IncomingMessage,
   res: import("node:http").ServerResponse,
