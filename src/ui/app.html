@@ -327,7 +327,8 @@ const field = (() => {
   const LIVE = "01░▸─≡·";
   const K2 = 7.2, DEPTH = 0.46;
 
-  let cols = 0, rows = 0, dpr = 1, K1 = 0;
+  let cols = 0, rows = 0, dpr = 1, K1 = 0, laneW = 0;
+  let cloudBuf = null, cloudAt = -999;
   let zbuf = null, cbuf = null, fbuf = null;
   let pts = [];
   let cells = new Map();
@@ -360,7 +361,7 @@ const field = (() => {
     .map((v) => (v + 0.5) / 16);
   const CLOUD = " .:-=+*#";
 
-  function clouds(t) {
+  function clouds(t, g) {
     // two banks drifting at different speeds reads as depth without costing
     // another octave
     const dx = t * 0.9, dy = t * 0.11;
@@ -378,8 +379,8 @@ const field = (() => {
         if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.55) continue;
         const ch = CLOUD[Math.min(CLOUD.length - 1, Math.round(d * (CLOUD.length - 1)))];
         if (ch === " ") continue;
-        ctx.fillStyle = "rgba(14,14,12," + (0.12 + d * 0.31).toFixed(3) + ")";
-        ctx.fillText(ch, x * CW, y * CH);
+        g.fillStyle = "rgba(14,14,12," + (0.12 + d * 0.31).toFixed(3) + ")";
+        g.fillText(ch, x * CW, y * CH);
       }
     }
   }
@@ -416,19 +417,31 @@ const field = (() => {
     pts = out;
   }
 
+  const RAIL = 430;
+  function usable() {
+    return innerWidth > 1100 && document.body.classList.contains("running")
+      ? Math.max(360, innerWidth - RAIL)
+      : innerWidth;
+  }
+
+  let H0 = 0;
   function size() {
+    laneW = usable();
+    H0 = innerHeight;
     dpr = Math.min(devicePixelRatio || 1, 2);
     cv.width = Math.max(1, innerWidth * dpr);
     cv.height = Math.max(1, innerHeight * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.font = '9px "IBM Plex Mono", ui-monospace, monospace';
     ctx.textBaseline = "top";
-    cols = Math.ceil(innerWidth / CW) + 1;
+    cols = Math.ceil(laneW / CW) + 1;
     rows = Math.ceil(innerHeight / CH) + 1;
     zbuf = new Float32Array(cols * rows);
     cbuf = new Uint8Array(cols * rows);
     fbuf = new Uint8Array(cols * rows);
     K1 = Math.min(cols * 0.88, rows * 3.6);
+    cloudBuf = null;
+    cloudAt = -999;
   }
   build();
   size();
@@ -451,7 +464,9 @@ const field = (() => {
   let last = 0, t0 = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
-    if (now - last < 50) return;
+    if (now - last < 55) return;
+    // the rail opening is not a window resize
+    if (usable() !== laneW) size();
     last = now;
     const t = (now - t0) / 1000;
 
@@ -488,7 +503,23 @@ const field = (() => {
     }
 
     ctx.clearRect(0, 0, innerWidth, innerHeight);
-    clouds(t);
+
+    // redraw the bank a few times a second, blit it every frame
+    if (!cloudBuf) {
+      cloudBuf = document.createElement("canvas");
+      cloudBuf.width = Math.max(1, laneW * dpr);
+      cloudBuf.height = Math.max(1, H0 * dpr);
+    }
+    if (t - cloudAt > 0.22) {
+      cloudAt = t;
+      const cc = cloudBuf.getContext("2d");
+      cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cc.clearRect(0, 0, laneW, H0);
+      cc.font = ctx.font;
+      cc.textBaseline = "top";
+      clouds(t, cc);
+    }
+    ctx.drawImage(cloudBuf, 0, 0, laneW, H0);
     for (let yy = 0; yy < rows; yy++) {
       for (let xx = 0; xx < cols; xx++) {
         const j = xx + yy * cols;
