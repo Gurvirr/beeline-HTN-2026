@@ -5,8 +5,7 @@
 //
 // BEELINE_BRAIN points at the worker; defaults to the local dev one.
 
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { register } from "./register.js";
 
 const BRAIN = process.env.BEELINE_BRAIN ?? "http://localhost:8788";
 const [action, name] = process.argv.slice(2);
@@ -30,17 +29,12 @@ try {
 
 async function remember() {
   if (!name) throw new Error("which flow?");
-  const spec = await readFile(join("out", `${name}.spec.json`), "utf8");
-
-  const res = await fetch(`${BRAIN}/apis`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: spec,
-  });
-
-  const body = (await res.json()) as { registered?: string; target?: string };
-  console.log(`\n  remembered ${C.green}${body.registered}${C.r}`);
-  console.log(`  ${C.dim}${body.target}${C.r}\n`);
+  const out = await register(name);
+  if (!out.ok) throw new Error(out.why ?? "could not register");
+  console.log(`
+  remembered ${C.green}${out.name}${C.r}`);
+  console.log(`  ${C.dim}${out.target}${C.r}
+`);
 }
 
 async function health() {

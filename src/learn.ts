@@ -4,6 +4,7 @@
 import { spawn } from "node:child_process";
 import { basename } from "node:path";
 import { emit } from "./events.js";
+import { register, brainUrl } from "./brain/register.js";
 
 const argv = process.argv.slice(2);
 const flowPath = argv.find((a) => !a.startsWith("--"));
@@ -65,6 +66,19 @@ try {
 
   stage(4, 4, "verify");
   await run("src/verify/run.ts", [flowName]);
+
+  // hand it to the brain straight away, so the curl we show is one that
+  // already works. a brain that is down must not fail a run that worked.
+  const remembered = await register(flowName);
+  if (remembered.ok) {
+    console.log(`
+${G}  registered with the brain${R}  ${brainUrl()}/call/${flowName}`);
+    emit({ type: "registered", flow: flowName, url: `${brainUrl()}/call/${flowName}` });
+  } else {
+    console.log(`
+${G}  not registered — ${remembered.why}${R}`);
+    emit({ type: "registered", flow: flowName, why: remembered.why });
+  }
 
   const elapsed = ((Date.now() - started) / 1000).toFixed(1);
   console.log(`\n${G}  learned ${flowName} in ${elapsed}s${R}`);

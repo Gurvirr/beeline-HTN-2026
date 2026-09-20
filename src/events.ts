@@ -14,6 +14,7 @@ export type Event =
   // magic, and watching it get checked is the whole argument.
   | { type: "think"; who: string; doing: string; detail?: string }
   | { type: "summary"; text: string; who: string }
+  | { type: "registered"; flow: string; url?: string; why?: string }
   | { type: "log"; line: string };
 
 const on = !!process.env.BEELINE_EVENTS;

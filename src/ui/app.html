@@ -694,6 +694,15 @@ function home() {
 $("navHome").onclick = (e) => { e.preventDefault(); home(); };
 
 let libCount = 0;
+let brainKnows = new Set();
+let curlNow = () => "";
+
+// one request on load. if the brain is unreachable we simply never claim it
+// knows anything, and every curl falls back to the local one.
+fetch(`${BRAIN}/apis`, { headers: { accept: "application/json" } })
+  .then(r => r.json())
+  .then(j => { brainKnows = new Set((j.apis || []).map(a => a.name)); })
+  .catch(() => {});
 
 async function loadLibrary() {
   let items = [];
@@ -1025,6 +1034,16 @@ function handle(ev) {
   if (ev.type === "spec") { step(0.72, "comparing the runs"); loadSpec(); }
   if (ev.type === "client") { step(0.88, "writing the client"); loadClient(); }
   if (ev.type === "verified") { step(1, "done"); finish(ev); }
+  if (ev.type === "registered") {
+    if (ev.url) {
+      brainKnows.add(ev.flow);
+      say(`registered with the brain — <b>${esc(ev.url)}</b>`, true);
+      if ($("curlcode")) $("curlcode").textContent = curlNow();
+    } else {
+      say(`not registered with the brain — ${esc(ev.why || "unreachable")}`);
+    }
+  }
+
   if (ev.type === "summary" && elSub) {
     // sits under the timing line rather than replacing it - the number and
     // the explanation are both worth having
@@ -1130,13 +1149,20 @@ function renderTry() {
   // the captured sample means it quietly disagrees with the thing you just ran.
   // an empty box means: use what we saw if the site requires it, otherwise
   // leave it off. sending ?filter= is not the same as not filtering.
+  // show a command that works. the brain only answers for apis it has been
+  // given, so until it has this one we print the local route instead of a
+  // url that would 404 in front of whoever we just handed it to.
   const curlFor = () => {
-    const q = params
+    const args = params
       .map(p => [p, argOf(p)])
-      .filter(([, v]) => v !== "")
-      .map(([p, v]) => `${p}=${encodeURIComponent(v)}`)
-      .join("&");
-    return `curl "${BRAIN}/call/${flow}${q ? "?" + q : ""}"`;
+      .filter(([, v]) => v !== "");
+    if (brainKnows.has(flow)) {
+      const q = args.map(([p, v]) => `${p}=${encodeURIComponent(v)}`).join("&");
+      return `curl "${BRAIN}/call/${flow}${q ? "?" + q : ""}"`;
+    }
+    const q = [["flow", flow], ...args]
+      .map(([p, v]) => `${p}=${encodeURIComponent(v)}`).join("&");
+    return `curl "${location.origin}/api/try?${q}"`;
   };
 
   pTry.querySelector(".r").textContent = `${params.length || "no"} parameter${params.length === 1 ? "" : "s"}`;
@@ -1154,6 +1180,7 @@ function renderTry() {
        </div>
        <pre id="codepre">${esc(clientSrc)}</pre>
      </div>`;
+  curlNow = curlFor;
   const paintCurl = () => ($("curlcode").textContent = curlFor());
   paintCurl();
   for (const p of params) $(`p_${p}`)?.addEventListener("input", paintCurl);
