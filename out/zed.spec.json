@@ -6,12 +6,12 @@
     "item": "a.group.cursor-pointer.rounded-sm",
     "fields": {
       "title": "p@0",
-      "stars": "p@1",
+      "repo_count": "p@1",
       "description": "p@2",
       "author": "p@3"
     },
     "found": 40,
-    "why": "listing cards"
+    "why": "repository search results"
   },
   "target": {
     "method": "GET",
@@ -27,7 +27,7 @@
         "title": {
           "type": "string"
         },
-        "stars": {
+        "repo_count": {
           "type": "string"
         },
         "description": {
@@ -39,7 +39,7 @@
       },
       "required": [
         "title",
-        "stars",
+        "repo_count",
         "description",
         "author"
       ]
@@ -47,8 +47,8 @@
   },
   "unresolved": [],
   "meta": {
-    "runs": 2,
-    "generatedAt": "2026-09-20T02:38:47.150Z",
-    "browserMs": 2406
+    "runs": 3,
+    "generatedAt": "2026-09-20T03:03:04.474Z",
+    "browserMs": 3266
   }
 }

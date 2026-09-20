@@ -45,63 +45,71 @@ for (const trace of traces) {
 // the response — fall back to pulling the data out of it
 if (noApi) {
   await htmlFallback(traces, flowName);
-  process.exit(0);
+} else {
+  await fromApi(flowName);
 }
 
-// if runs disagree about which endpoint mattered, the flow isn't deterministic
-// and everything downstream would be built on sand
-const paths = new Set(targets.map((t) => `${t.method} ${t.path}`));
-if (paths.size > 1) {
-  console.error(`runs disagree on the target request:\n  ${[...paths].join("\n  ")}`);
-  process.exit(1);
-}
+// the api path, in a function only so the html path above can skip it.
+// it used to be top-level with a process.exit(0) before it, which exits
+// while the model call's keep-alive socket is still closing — on windows
+// that trips a libuv assertion and the whole run looks like it failed.
+async function fromApi(flowName: string) {
 
-const fields: Field[] = classify(
-  targets.map(extract),
-  traces.map((t) => t.input),
-);
-
-for (const field of fields) {
-  if (field.kind === "volatile" && !field.source) {
-    field.source = resolveVolatile(field, traces, targets);
+  // if runs disagree about which endpoint mattered, the flow isn't deterministic
+  // and everything downstream would be built on sand
+  const paths = new Set(targets.map((t) => `${t.method} ${t.path}`));
+  if (paths.size > 1) {
+    console.error(`runs disagree on the target request:\n  ${[...paths].join("\n  ")}`);
+    process.exit(1);
   }
+
+  const fields: Field[] = classify(
+    targets.map(extract),
+    traces.map((t) => t.input),
+  );
+
+  for (const field of fields) {
+    if (field.kind === "volatile" && !field.source) {
+      field.source = resolveVolatile(field, traces, targets);
+    }
+  }
+
+  const responseSchema = infer(targets.map((t) => t.responseBody));
+
+  // every derived field implies a request we must make first. collapse them by
+  // endpoint — one GET usually provides the cookie *and* the CSRF token
+  const bootstrap: BootstrapStep[] = [];
+  for (const field of fields) {
+    const source = field.source;
+    if (source?.kind !== "derived") continue;
+
+    const url = traces[0]!.origin + source.fromPath;
+    const step = bootstrap.find((b) => b.url === url && b.method === source.fromMethod);
+    if (step) step.provides.push(field.name);
+    else bootstrap.push({ method: source.fromMethod, url, provides: [field.name] });
+  }
+
+  const target = targets[0]!;
+  const spec: Spec = {
+    flow: flowName,
+    origin: traces[0]!.origin,
+    target: { method: target.method, urlTemplate: stripQuery(target.url) },
+    fields,
+    bootstrap,
+    responseSchema,
+    unresolved: fields.filter((f) => f.source?.kind === "unresolved"),
+    meta: {
+      runs: traces.length,
+      generatedAt: new Date().toISOString(),
+      browserMs: median(targets.map((t) => t.t)),
+    },
+  };
+
+  await mkdir("out", { recursive: true });
+  await writeFile(join("out", `${flowName}.spec.json`), JSON.stringify(spec, null, 2));
+
+  report(spec, traces);
 }
-
-const responseSchema = infer(targets.map((t) => t.responseBody));
-
-// every derived field implies a request we must make first. collapse them by
-// endpoint — one GET usually provides the cookie *and* the CSRF token
-const bootstrap: BootstrapStep[] = [];
-for (const field of fields) {
-  const source = field.source;
-  if (source?.kind !== "derived") continue;
-
-  const url = traces[0]!.origin + source.fromPath;
-  const step = bootstrap.find((b) => b.url === url && b.method === source.fromMethod);
-  if (step) step.provides.push(field.name);
-  else bootstrap.push({ method: source.fromMethod, url, provides: [field.name] });
-}
-
-const target = targets[0]!;
-const spec: Spec = {
-  flow: flowName,
-  origin: traces[0]!.origin,
-  target: { method: target.method, urlTemplate: stripQuery(target.url) },
-  fields,
-  bootstrap,
-  responseSchema,
-  unresolved: fields.filter((f) => f.source?.kind === "unresolved"),
-  meta: {
-    runs: traces.length,
-    generatedAt: new Date().toISOString(),
-    browserMs: median(targets.map((t) => t.t)),
-  },
-};
-
-await mkdir("out", { recursive: true });
-await writeFile(join("out", `${flowName}.spec.json`), JSON.stringify(spec, null, 2));
-
-report(spec, traces);
 
 function stripQuery(url: string) {
   const u = new URL(url);
