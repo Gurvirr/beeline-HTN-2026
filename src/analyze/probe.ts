@@ -12,6 +12,7 @@
 
 import type { Field, Spec } from "../types.js";
 import { ask, fast } from "../llm.js";
+import { emit } from "../events.js";
 
 // the names everyone uses. ordered so the likely ones go first, since we stop
 // after we have found enough.
@@ -34,6 +35,7 @@ At most 12. Do not repeat parameters that are already known.`;
 async function suggest(spec: Spec, known: Set<string>, sample: unknown): Promise<string[]> {
   const p = fast();
   if (!p.key) return [];
+  emit({ type: "think", who: p.model, doing: "what else might this endpoint take?" });
 
   const row = JSON.stringify(sample ?? {}).slice(0, 700);
   const raw = await ask(
@@ -170,7 +172,15 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
   // the common case is still found on the first try. anything the model adds
   // is tried after, and only ever in addition.
   const proposed = await suggest(spec, known, before[0]).catch(() => []);
-  if (proposed.length) log?.(`suggested: ${proposed.join(", ")}`);
+  if (proposed.length) {
+    log?.(`suggested: ${proposed.join(", ")}`);
+    emit({
+      type: "think",
+      who: fast().model,
+      doing: `guessed ${proposed.length} parameters`,
+      detail: proposed.join(" "),
+    });
+  }
 
   const textNames = [...new Set([...TEXT, ...proposed])].slice(0, 16);
   const limitNames = [...new Set([...LIMIT, ...proposed])].slice(0, 10);
@@ -194,6 +204,11 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
       if (!after.every((r) => ids.has(idOf(r)))) continue;
 
       log?.(`${name}="${word}" → ${after.length} of ${before.length}`);
+      emit({
+        type: "think",
+        who: "checked",
+        doing: `${name} is real — narrowed ${before.length} rows to ${after.length}`,
+      });
       found.push({
         field: {
           location: "query",
@@ -235,5 +250,8 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
     break;
   }
 
+  if (proposed.length && !found.length) {
+    emit({ type: "think", who: "checked", doing: "none of them changed the answer — dropped" });
+  }
   return found;
 }

@@ -185,6 +185,12 @@
   .step.key .dot{color:var(--green)}
   /* the field that mattered, marker-penned */
   .step b{color:var(--ink);background:var(--yellow);font-weight:600;padding:0 4px}
+  /* a model talking. set apart so it is obvious which parts are guessed and
+     which parts were measured. */
+  .step.ai .dot{color:var(--wing)}
+  .step.ai .who{color:var(--wing);font-size:11.5px;margin-right:7px}
+  .step.ai .det{display:block;color:var(--muted);font-size:11.5px;margin-top:2px;
+    word-break:break-word}
 
   /* ---- the diff. this is the product, so it gets the strongest treatment ---- */
   table{border-collapse:collapse;width:100%;font-size:11.5px}
@@ -230,6 +236,9 @@
     border-radius:3px;background:var(--paper);color:var(--ink);outline:0;width:100%;transition:.1s}
   .field input:focus{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--yellow)}
   .field label .type{color:var(--ink);background:var(--yellow);padding:0 4px;margin-left:5px}
+  /* this one the site never sent - beeline went looking for it */
+  .field label .found{color:var(--wing);border:1px solid var(--wing-wash);padding:0 4px;
+    margin-left:5px;border-radius:2px}
   .curl{display:flex;align-items:center;gap:8px;background:var(--ink);border-radius:3px;
     padding:8px 10px;margin-bottom:10px;overflow:auto}
   .curl code{font-size:11px;color:#E8E2D2;white-space:nowrap;flex:1}
@@ -596,7 +605,7 @@ const BRAIN = "https://beeline-brain.gurvirrandhawa28.workers.dev";
 const BEE = `<svg viewBox="0 0 32 24"><ellipse cx="12" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="20" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="16" cy="14" rx="8.6" ry="6.8" fill="#E5A42B"/><path d="M12.5 8.4 A8.6 6.8 0 0 0 12.5 19.6" stroke="#1F1810" stroke-width="2.2" fill="none"/><path d="M17.5 7.8 A8.6 6.8 0 0 0 17.5 20.2" stroke="#1F1810" stroke-width="2.2" fill="none"/></svg>`;
 
 let es=null, count=0, flow="", lastReplay="", params=[], clientSrc="", t0=0;
-let paramTypes={}, paramDefaults={}, known=[];
+let paramTypes={}, paramDefaults={}, paramOptional={}, known=[];
 let elThink, elThinkN, elDiff, elDiffN, elWire, elWireN, elTop, elSub, elBuilt;
 let elBar, elPhase, done01 = 0, totalRuns = 3;
 let pLive, pLiveBody, pLiveR, pTry, pTryBody;
@@ -688,13 +697,14 @@ function cardHtml(it) {
 // open one straight into the try panel, skipping the pipeline entirely
 async function openApi(name) {
   flow = name;
-  params = []; paramTypes = {}; paramDefaults = {}; clientSrc = "";
+  params = []; paramTypes = {}; paramDefaults = {}; paramOptional = {}; clientSrc = "";
 
   const spec = await (await fetch(`/api/spec?flow=${flow}`)).json();
   for (const f of spec.fields.filter(f => f.kind === "param" && f.boundTo)) {
     if (!params.includes(f.boundTo)) params.push(f.boundTo);
     paramTypes[f.boundTo] = f.samples.every(s => s !== "" && !isNaN(Number(s))) ? "int" : "str";
     paramDefaults[f.boundTo] = f.samples[f.samples.length - 1] ?? "";
+    paramOptional[f.boundTo] = !!f.optional;
   }
   clientSrc = await (await fetch(`/api/client?flow=${flow}`)).text();
 
@@ -942,6 +952,18 @@ function handle(ev) {
       (lastReplay ? ` · <a href="${lastReplay}" target="_blank">watch the replay</a>` : "") + `</div>`;
   }
 
+  if (ev.type === "think") {
+    const det = ev.detail ? `<span class="det">${esc(ev.detail)}</span>` : "";
+    const d = document.createElement("div");
+    d.className = "step ai";
+    d.innerHTML = `<span class="dot">~</span><span><span class="who">${esc(ev.who)}</span>${esc(ev.doing)}${det}</span>`;
+    if (elThink) {
+      elThink.appendChild(d);
+      elThinkN.textContent = `${elThink.childElementCount} steps`;
+      scroll();
+    }
+  }
+
   if (ev.type === "spec") { step(0.72, "comparing the runs"); loadSpec(); }
   if (ev.type === "client") { step(0.88, "writing the client"); loadClient(); }
   if (ev.type === "verified") { step(1, "done"); finish(ev); }
@@ -965,10 +987,11 @@ async function loadSpec() {
 
   // every sample numeric? then it's a number. cheap, and it makes the
   // generated api look like something someone designed
-  paramTypes = {}; paramDefaults = {};
+  paramTypes = {}; paramDefaults = {}; paramOptional = {};
   for (const f of fields.filter(f => f.kind === "param" && f.boundTo)) {
     paramTypes[f.boundTo] = f.samples.every(s => s !== "" && !isNaN(Number(s))) ? "int" : "str";
     paramDefaults[f.boundTo] = f.samples[f.samples.length - 1] ?? "";
+    paramOptional[f.boundTo] = !!f.optional;
   }
 
   say("lined the runs up and compared every field");
@@ -1028,16 +1051,24 @@ function renderTry() {
   const fields = params.length
     ? params.map(p => {
         const t = paramTypes[p] ?? "str";
-        return `<div class="field"><label>${esc(p)} <span class="type">${t}</span></label>
-          <input id="p_${esc(p)}" value="${esc(paramDefaults[p] ?? "")}"></div>`;
+        const opt = paramOptional[p];
+        // ghost text, not a value. prefilling two boxes from separate probe
+        // runs produced combinations the site never returns anything for.
+        return `<div class="field"><label>${esc(p)} <span class="type">${t}</span>${
+          opt ? '<span class="found">probed</span>' : ""}</label>
+          <input id="p_${esc(p)}" placeholder="${esc(paramDefaults[p] ?? "")}"></div>`;
       }).join("")
     : `<div class="field"><label>no parameters</label></div>`;
 
   // the curl has to track what's actually in the boxes. building it once from
   // the captured sample means it quietly disagrees with the thing you just ran.
+  // an empty box means: use what we saw if the site requires it, otherwise
+  // leave it off. sending ?filter= is not the same as not filtering.
   const curlFor = () => {
     const q = params
-      .map(p => `${p}=${encodeURIComponent($(`p_${p}`)?.value ?? paramDefaults[p] ?? "")}`)
+      .map(p => [p, argOf(p)])
+      .filter(([, v]) => v !== "")
+      .map(([p, v]) => `${p}=${encodeURIComponent(v)}`)
       .join("&");
     return `curl "${BRAIN}/call/${flow}${q ? "?" + q : ""}"`;
   };
@@ -1063,9 +1094,18 @@ function renderTry() {
   };
 }
 
+function argOf(p) {
+  const typed = ($(`p_${p}`)?.value ?? "").trim();
+  if (typed) return typed;
+  return paramOptional[p] ? "" : (paramDefaults[p] ?? "");
+}
+
 async function call() {
   const args = new URLSearchParams();
-  for (const p of params) args.set(p, $(`p_${p}`).value);
+  for (const p of params) {
+    const v = argOf(p);
+    if (v !== "") args.set(p, v);
+  }
   $("callit").disabled = true;
   $("callout").innerHTML = `<div class="resline">calling…</div>`;
   const started = performance.now();

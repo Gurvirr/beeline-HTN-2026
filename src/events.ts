@@ -10,6 +10,9 @@ export type Event =
   | { type: "client"; flow: string; lines: number }
   | { type: "verified"; ok: boolean; httpMs: number; browserMs: number; speedup: number; detail: string }
   | { type: "failed"; message: string }
+  // a model did something. worth showing: it is the part people assume is
+  // magic, and watching it get checked is the whole argument.
+  | { type: "think"; who: string; doing: string; detail?: string }
   | { type: "log"; line: string };
 
 const on = !!process.env.BEELINE_EVENTS;
