@@ -64,9 +64,9 @@
   .thread{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;background:transparent}
   /* before a run there is nothing to scroll, so stop pretending: centre the
      headline and the box together as one block */
-  body:not(.running) .lane{justify-content:center}
+  body:not(.running) .lane{justify-content:flex-start}
   body:not(.running) .thread{flex:0 1 auto;overflow:visible}
-  body:not(.running) .inner{padding-bottom:0}
+  body:not(.running) .inner{padding-top:7vh;padding-bottom:0}
   .inner{max-width:730px;margin:0 auto;padding:26px 22px 8px}
 
   /* ---- the empty state: the call to action is the page ---- */
@@ -75,7 +75,7 @@
     font-size:clamp(30px,4.4vw,52px);margin:0 0 14px;letter-spacing:-.005em;
     line-height:1.08;color:var(--ink)}
   .hero h1 mark{background:var(--yellow);color:var(--ink);padding:0 8px;font-weight:700}
-  .hero p{color:var(--ink-2);margin:0 auto 28px;max-width:44ch;font-size:15px;line-height:1.5}
+  .hero p{color:var(--ink-2);margin:0 auto 28px;max-width:72ch;font-size:15px;line-height:1.5}
   .hero.gone{display:none}
 
   /* the diagram is a footnote to the headline, not a second headline */
@@ -227,8 +227,9 @@
   body:not(.running) .box input{font-size:17px;padding:13px 0}
   body:not(.running) .go{width:44px;height:44px;font-size:17px}
 
-  .opts{display:flex;gap:18px;justify-content:center;margin-top:12px;color:var(--muted);
-    font-size:12.5px}
+  /* the mark passes behind this row, so give it its own ground */
+  .opts{display:flex;gap:18px;justify-content:center;margin:12px auto 0;color:var(--muted);
+    font-size:12.5px;background:var(--paper);width:fit-content;padding:3px 12px;border-radius:3px}
   .opts label{display:flex;gap:7px;align-items:center;cursor:pointer}
   .opts input{accent-color:var(--ink)}
   a{color:var(--ink);text-decoration-color:var(--yellow-deep);text-underline-offset:2px}
@@ -356,7 +357,7 @@ const field = (() => {
         if (d <= 0) continue;
         if (d > 1) d = 1;
         // fade out top and bottom so it sits as a band across the middle
-        const band = 1 - Math.abs(y / rows - 0.5) * 1.25;
+        const band = Math.min(1, Math.abs(y / rows - 0.5) * 2.6 - 0.12);
         if (band <= 0) continue;
         d *= band;
         if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.55) continue;
@@ -412,7 +413,7 @@ const field = (() => {
     zbuf = new Float32Array(cols * rows);
     cbuf = new Uint8Array(cols * rows);
     fbuf = new Uint8Array(cols * rows);
-    K1 = Math.min(cols * 0.88, rows * 3.6);
+    K1 = Math.min(cols * 0.62, rows * 2.5);
   }
   build();
   size();
@@ -445,7 +446,7 @@ const field = (() => {
     const cB = Math.cos(B), sB = Math.sin(B);
 
     zbuf.fill(0); cbuf.fill(0); fbuf.fill(0);
-    const ox = cols / 2, oy = rows / 2;
+    const ox = cols / 2, oy = rows * 0.72;
 
     for (let i = 0; i < pts.length; i++) {
       const q = pts[i];
