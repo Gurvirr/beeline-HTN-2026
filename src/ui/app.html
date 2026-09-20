@@ -6,7 +6,7 @@
 <title>beeline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
 <style>
   /* beeline reads a wire and lines runs up against each other. so the page is
      built like a strip of tape: monospace first, ruled with box characters,
@@ -28,8 +28,10 @@
     /* the signature: hazard tape. used once, where it is earned. */
     --tape:repeating-linear-gradient(45deg,var(--yellow) 0 7px,var(--ink) 7px 14px);
 
-    --display:"Fraunces",Georgia,serif;
-    --sans:"DM Sans",system-ui,-apple-system,sans-serif;
+    /* chakra petch carries the name and the numbers; everything else is
+       plex mono, because the rest of this interface is machine output */
+    --display:"Chakra Petch",system-ui,sans-serif;
+    --sans:"IBM Plex Mono",ui-monospace,Menlo,monospace;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
   ::selection{background:var(--yellow);color:var(--ink)}
@@ -47,7 +49,8 @@
   /* ---- status bar, not a nav ---- */
   header{display:flex;align-items:center;gap:9px;padding:0 16px;height:46px;flex-shrink:0;
     background:var(--surface);border-bottom:1px solid var(--line)}
-  .mark{font-weight:700;font-size:14.5px;letter-spacing:.06em;color:var(--ink)}
+  .mark{font-family:var(--display);font-weight:700;font-size:16px;
+    letter-spacing:.08em;color:var(--ink)}
   .spacer{flex:1}
   .status{font-size:11.5px;color:var(--ink-2);letter-spacing:.02em;opacity:0;transition:opacity .2s}
   .status.on{opacity:1}
@@ -71,7 +74,7 @@
 
   /* ---- empty state: say what it does, in one diagram ---- */
   .hero{padding:6vh 0 0;text-align:center}
-  .hero h1{font-family:var(--sans);font-weight:500;font-size:19px;letter-spacing:-.01em;
+  .hero h1{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.005em;
     margin:0 0 6px;color:var(--ink)}
   .hero h1 mark{background:var(--yellow);color:var(--ink);padding:0 5px;font-weight:700}
   .hero p{color:var(--muted);margin:0 auto 24px;max-width:52ch;font-family:var(--sans);font-size:13.5px}
@@ -109,7 +112,7 @@
   .built-top{display:flex;align-items:center;gap:8px;padding:11px 14px 0;flex-wrap:wrap}
   .tick{color:var(--green);font-size:12px}
   .kicker{font-size:11.5px;color:var(--muted);letter-spacing:.09em;text-transform:uppercase}
-  .name{font-weight:600;font-size:14px}
+  .name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.02em}
   .badge{font-size:11px;color:var(--muted)}
   .badge::before{content:"\00b7";margin-right:7px;color:var(--line-2)}
   .badge.heal{color:var(--green)}
@@ -352,17 +355,17 @@ const field = (() => {
       for (let x = 0; x < cols; x++) {
         let d = fbm(x * 0.055 + dx * 0.05, y * 0.085 + dy);
         // push the midtones apart so it reads as cloud rather than fog
-        d = (d - 0.38) * 2.05;
+        d = (d - 0.30) * 2.35;
         if (d <= 0) continue;
         if (d > 1) d = 1;
         // fade out top and bottom so it sits as a band across the middle
-        const band = 1 - Math.abs(y / rows - 0.5) * 1.75;
+        const band = 1 - Math.abs(y / rows - 0.5) * 1.25;
         if (band <= 0) continue;
         d *= band;
-        if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.85) continue;
+        if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.55) continue;
         const ch = CLOUD[Math.min(CLOUD.length - 1, Math.round(d * (CLOUD.length - 1)))];
         if (ch === " ") continue;
-        ctx.fillStyle = "rgba(14,14,12," + (0.035 + d * 0.075).toFixed(3) + ")";
+        ctx.fillStyle = "rgba(14,14,12," + (0.07 + d * 0.20).toFixed(3) + ")";
         ctx.fillText(ch, x * CW, y * CH);
       }
     }
@@ -376,7 +379,7 @@ const field = (() => {
     c.fillStyle = "#000";
     c.textBaseline = "middle";
     c.textAlign = "center";
-    c.font = '700 66px "IBM Plex Mono", ui-monospace, monospace';
+    c.font = '700 74px "Chakra Petch", system-ui, sans-serif';
     c.fillText("beeline", W / 2, H / 2);
     const px = c.getImageData(0, 0, W, H).data;
     const on = (x, y) =>
