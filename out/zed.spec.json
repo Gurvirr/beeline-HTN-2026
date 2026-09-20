@@ -1,0 +1,54 @@
+{
+  "flow": "zed",
+  "origin": "https://zed.dev",
+  "mode": "html",
+  "extraction": {
+    "item": "a.group.cursor-pointer.rounded-sm",
+    "fields": {
+      "title": "p@0",
+      "stars": "p@1",
+      "description": "p@2",
+      "author": "p@3"
+    },
+    "found": 40,
+    "why": "listing cards"
+  },
+  "target": {
+    "method": "GET",
+    "urlTemplate": "https://zed.dev/extensions"
+  },
+  "fields": [],
+  "bootstrap": [],
+  "responseSchema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "stars": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "stars",
+        "description",
+        "author"
+      ]
+    }
+  },
+  "unresolved": [],
+  "meta": {
+    "runs": 2,
+    "generatedAt": "2026-09-20T02:38:47.150Z",
+    "browserMs": 2406
+  }
+}

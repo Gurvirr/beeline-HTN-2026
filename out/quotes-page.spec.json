@@ -5,12 +5,15 @@
   "extraction": {
     "item": "div.quote",
     "fields": {
-      "quote_text": "span.text",
-      "author": "small.author",
-      "tags": "div.tags .tag"
+      "quote": "span@0",
+      "author": "small@0",
+      "tag1": "a@1",
+      "tag2": "a@2",
+      "tag3": "a@3",
+      "tag4": "a@4"
     },
     "found": 10,
-    "why": "each quote card repeats with text, author, and tags"
+    "why": "quote entries with author and tags"
   },
   "target": {
     "method": "GET",
@@ -23,27 +26,39 @@
     "items": {
       "type": "object",
       "properties": {
-        "quote_text": {
+        "quote": {
           "type": "string"
         },
         "author": {
           "type": "string"
         },
-        "tags": {
+        "tag1": {
+          "type": "string"
+        },
+        "tag2": {
+          "type": "string"
+        },
+        "tag3": {
+          "type": "string"
+        },
+        "tag4": {
           "type": "string"
         }
       },
       "required": [
-        "quote_text",
+        "quote",
         "author",
-        "tags"
+        "tag1",
+        "tag2",
+        "tag3",
+        "tag4"
       ]
     }
   },
   "unresolved": [],
   "meta": {
     "runs": 2,
-    "generatedAt": "2026-09-20T02:14:59.455Z",
+    "generatedAt": "2026-09-20T02:39:04.543Z",
     "browserMs": 852
   }
 }
