@@ -227,9 +227,8 @@
   body:not(.running) .box input{font-size:17px;padding:13px 0}
   body:not(.running) .go{width:44px;height:44px;font-size:17px}
 
-  /* the mark passes behind this row, so give it its own ground */
-  .opts{display:flex;gap:18px;justify-content:center;margin:12px auto 0;color:var(--muted);
-    font-size:12.5px;background:var(--paper);width:fit-content;padding:3px 12px;border-radius:3px}
+  .opts{display:flex;gap:18px;justify-content:center;margin-top:12px;color:var(--muted);
+    font-size:12.5px}
   .opts label{display:flex;gap:7px;align-items:center;cursor:pointer}
   .opts input{accent-color:var(--ink)}
   a{color:var(--ink);text-decoration-color:var(--yellow-deep);text-underline-offset:2px}
@@ -357,7 +356,7 @@ const field = (() => {
         if (d <= 0) continue;
         if (d > 1) d = 1;
         // fade out top and bottom so it sits as a band across the middle
-        const band = Math.min(1, Math.abs(y / rows - 0.5) * 2.6 - 0.12);
+        const band = 1 - Math.abs(y / rows - 0.5) * 1.25;
         if (band <= 0) continue;
         d *= band;
         if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.55) continue;
@@ -413,7 +412,7 @@ const field = (() => {
     zbuf = new Float32Array(cols * rows);
     cbuf = new Uint8Array(cols * rows);
     fbuf = new Uint8Array(cols * rows);
-    K1 = Math.min(cols * 0.62, rows * 2.5);
+    K1 = Math.min(cols * 0.88, rows * 3.6);
   }
   build();
   size();
@@ -446,7 +445,7 @@ const field = (() => {
     const cB = Math.cos(B), sB = Math.sin(B);
 
     zbuf.fill(0); cbuf.fill(0); fbuf.fill(0);
-    const ox = cols / 2, oy = rows * 0.72;
+    const ox = cols / 2, oy = rows / 2;
 
     for (let i = 0; i < pts.length; i++) {
       const q = pts[i];
