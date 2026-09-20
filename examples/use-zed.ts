@@ -3,7 +3,7 @@
 import { ZedClient } from "../out/zed.client.js";
 
 const t0 = Date.now();
-const res = await new ZedClient().call({ filter: "themes" });
+const res = await new ZedClient().call({ provides: "themes" });
 const rows = (res as any).data as any[];
 
 console.log(`

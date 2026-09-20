@@ -81,11 +81,11 @@
       "name": "provides",
       "kind": "param",
       "samples": [
-        "python",
-        "theme",
-        "rust"
+        "themes",
+        "languages",
+        "icon-themes"
       ],
-      "boundTo": "filter"
+      "boundTo": "provides"
     }
   ],
   "bootstrap": [],
@@ -122,7 +122,7 @@
               "type": "number"
             },
             "wasm_api_version": {
-              "type": "string"
+              "type": "null"
             },
             "provides": {
               "type": "array",
@@ -160,7 +160,7 @@
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-20T03:25:18.264Z",
-    "browserMs": 1361
+    "generatedAt": "2026-09-20T03:44:13.615Z",
+    "browserMs": 1423
   }
 }
