@@ -34,6 +34,11 @@
   }
   ::selection{background:var(--yellow);color:var(--ink)}
   *{box-sizing:border-box}
+  /* the field behind everything. it is not wallpaper: idle it just breathes,
+     and while a capture is running every request that comes off the wire
+     flies across it. the background is the data. */
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  header,.stage,.composer{position:relative;z-index:1}
   html,body{height:100%}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--mono);
     font-size:13px;line-height:1.62;-webkit-font-smoothing:antialiased;
@@ -61,7 +66,7 @@
   .rail{display:none;border-left:1px solid var(--rule);background:var(--surface);
     overflow-y:auto;padding:14px}
   body.running .rail{display:block}
-  .thread{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
+  .thread{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;background:transparent}
   .inner{max-width:730px;margin:0 auto;padding:26px 22px 8px}
 
   /* ---- empty state: say what it does, in one diagram ---- */
@@ -80,7 +85,7 @@
   pre.diagram b{color:var(--ink);font-weight:400}
   pre.diagram i{color:var(--ink-2);font-style:normal}
   .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
-  .chip{font-family:var(--mono);font-size:12px;background:transparent;border:1px solid var(--line-2);
+  .chip{font-family:var(--mono);font-size:12px;background:var(--paper);border:1px solid var(--line-2);
     border-radius:3px;padding:5px 11px;cursor:pointer;color:var(--ink-2);transition:.1s}
   .chip::before{content:"\00b7 ";color:var(--line-2)}
   .chip:hover{background:var(--yellow);color:var(--ink);border-color:var(--ink);font-weight:500}
@@ -197,7 +202,7 @@
   .resline b{color:var(--green);font-weight:600} .resline b.bad{color:var(--red)}
 
   /* ---- composer: a prompt line, literally ---- */
-  .composer{padding:10px 22px 16px;flex-shrink:0}
+  .composer{padding:10px 22px 16px;flex-shrink:0;background:transparent}
   .box{display:flex;gap:8px;align-items:center;max-width:730px;margin:0 auto;background:var(--surface);
     border:1px solid var(--line-2);border-radius:3px;padding:4px 4px 4px 12px;transition:.12s}
   .box::before{content:"\25b8";color:var(--yellow-deep);font-size:12px;flex-shrink:0}
@@ -209,7 +214,9 @@
     cursor:pointer;color:var(--ink);font-size:13px;flex-shrink:0;font-weight:700;transition:.08s}
   .go:hover{background:var(--yellow-hot)}
   .go:disabled{opacity:.3;cursor:default}
-  .opts{display:flex;gap:16px;justify-content:center;margin-top:9px;color:var(--muted);font-size:11.5px}
+  .opts{display:flex;gap:16px;justify-content:center;margin-top:9px;color:var(--muted);
+    font-size:11.5px;background:var(--paper);width:fit-content;margin-left:auto;margin-right:auto;
+    padding:2px 10px;border-radius:3px}
   .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
   .opts input{accent-color:var(--ink)}
   a{color:var(--ink);text-decoration-color:var(--yellow-deep);text-underline-offset:2px}
@@ -225,6 +232,8 @@
 </style>
 </head>
 <body>
+
+<canvas id="bg" aria-hidden="true"></canvas>
 
 <header>
   <svg class="bee resting" id="bee" viewBox="0 0 32 24" aria-hidden="true">
@@ -276,6 +285,133 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+
+// ---- the field ----------------------------------------------------------
+//
+// the bee, drawn as ascii. not an image dropped in: every frame we sample a
+// shape field - body, stripes, head, two wings that actually beat - and pick
+// a character per cell by how much of it is covered. that is why it can flap
+// without a single frame of artwork.
+//
+// while a capture is running, requests streak across it. those are real: one
+// per exchange the recorder reports.
+const field = (() => {
+  const cv = document.getElementById("bg");
+  const ctx = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const CW = 7, CH = 9;                      // fine grid = high definition
+  const RAMP = " .:-=+*#%@";
+  const LIVE = "01░▸─≡·";
+
+  let cols = 0, rows = 0, dpr = 1, R = 0, cx = 0, cy = 0;
+  let cells = new Map();
+
+  function size() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.width = Math.max(1, innerWidth * dpr);
+    cv.height = Math.max(1, innerHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '9px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.textBaseline = "top";
+    cols = Math.ceil(innerWidth / CW) + 1;
+    rows = Math.ceil(innerHeight / CH) + 1;
+    // the bee spans about 2.9R across and 1.6R down, so size it to sit
+    // inside the viewport with room rather than crashing into the edges
+    R = Math.min(innerWidth / 3.4, innerHeight / 2.2);
+    cx = innerWidth * 0.5;
+    cy = innerHeight * 0.58;
+  }
+  size();
+  addEventListener("resize", size);
+
+  // how much bee covers this point, and which part of it.
+  // 1 = dark (head, gaps between bands, stinger), 2 = banded body, 3 = wing.
+  function sample(px, py, t) {
+    const u = (px - cx) / R, v = (py - cy) / R;
+
+    // wings sit over the thorax and beat. squashing them on the short axis
+    // is what sells the flap - a rotation alone just looks like scissors.
+    const beat = Math.sin(t * 9);
+    const sq = 0.30 + 0.70 * Math.abs(Math.cos(t * 9));
+    for (const side of [-1, 1]) {
+      const hx = u - side * 0.18, hy = v + 0.62;
+      const a = side * (0.55 + beat * 0.30);
+      const rx = hx * Math.cos(a) - hy * Math.sin(a);
+      const ry = hx * Math.sin(a) + hy * Math.cos(a);
+      if ((rx / 0.52) ** 2 + (ry / (0.17 * sq)) ** 2 <= 1) return [0.5, 3];
+    }
+
+    for (const side of [-1, 1]) {
+      const ax = u - 1.30, ay = v + side * 0.26;
+      if (ax > 0 && ax < 0.42 && Math.abs(ay + side * ax * 0.75) < 0.05) return [0.8, 1];
+    }
+
+    const hd = ((u - 1.24) / 0.30) ** 2 + (v / 0.30) ** 2;
+    if (hd <= 1) return [1 - hd * 0.25, 1];
+
+    if (u < -1.12 && u > -1.42 && Math.abs(v) < (u + 1.42) * 0.30) return [0.9, 1];
+
+    const bd = (u / 1.14) ** 2 + (v / 0.52) ** 2;
+    if (bd <= 1) {
+      const e = 1 - bd * 0.22;
+      return Math.sin((u + 0.3) * 8.0) > 0 ? [e, 2] : [e * 0.34, 1];
+    }
+    return [0, 0];
+  }
+
+  const key = (x, y) => y * 4000 + x;
+  function streak() {
+    const y = 1 + Math.floor(Math.random() * Math.max(1, rows - 2));
+    const x0 = Math.floor(Math.random() * cols);
+    const len = 14 + Math.floor(Math.random() * 22);
+    for (let i = 0; i < len; i++) {
+      const ch = LIVE[Math.floor(Math.random() * LIVE.length)];
+      const life = 1 - i / (len * 1.5);
+      if (life > 0) cells.set(key(x0 + i, y), { x: x0 + i, y, ch, life });
+    }
+  }
+
+  const INK = "rgba(14,14,12,", HONEY = "rgba(201,154,0,", WING = "rgba(31,78,121,";
+
+  let last = 0, t0 = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (now - last < 66) return;            // 15fps
+    last = now;
+    const t = (now - t0) / 1000;
+
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+
+    // a slow hover, so it never sits perfectly still
+    const bobX = Math.sin(t * 0.55) * R * 0.05;
+    const bobY = Math.cos(t * 0.42) * R * 0.04;
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const [d, part] = sample(x * CW - bobX, y * CH - bobY, t);
+        if (d <= 0.02) continue;
+        const ch = RAMP[Math.min(RAMP.length - 1, Math.round(d * (RAMP.length - 1)))];
+        if (ch === " ") continue;
+        const base = part === 3 ? WING : part === 2 ? HONEY : INK;
+        const a = part === 3 ? d * 0.16 : part === 2 ? d * 0.26 : d * 0.15;
+        ctx.fillStyle = base + a.toFixed(3) + ")";
+        ctx.fillText(ch, x * CW, y * CH);
+      }
+    }
+
+    for (const c of cells.values()) {
+      c.life -= 0.018;
+      if (c.life <= 0) { cells.delete(key(c.x, c.y)); continue; }
+      ctx.fillStyle = HONEY + Math.min(1, c.life * 0.5).toFixed(3) + ")";
+      ctx.fillText(c.ch, c.x * CW, c.y * CH);
+    }
+  }
+  if (!still) requestAnimationFrame(frame);
+
+  return { hit: () => { if (!still) streak(); } };
+})();
+
 const BRAIN = "https://beeline-brain.gurvirrandhawa28.workers.dev";
 const BEE = `<svg viewBox="0 0 32 24"><ellipse cx="12" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="20" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="16" cy="14" rx="8.6" ry="6.8" fill="#E5A42B"/><path d="M12.5 8.4 A8.6 6.8 0 0 0 12.5 19.6" stroke="#1F1810" stroke-width="2.2" fill="none"/><path d="M17.5 7.8 A8.6 6.8 0 0 0 17.5 20.2" stroke="#1F1810" stroke-width="2.2" fill="none"/></svg>`;
 
@@ -485,6 +621,7 @@ function handle(ev) {
 
   if (ev.type === "exchange") {
     count++;
+    field.hit();
     elWireN.textContent = `${count} requests`;
     const r = document.createElement("div");
     r.className = "req";
