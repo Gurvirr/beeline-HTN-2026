@@ -102,19 +102,20 @@
   .turn-you{display:flex;justify-content:flex-end;margin:18px 0 14px}
   .bubble{background:var(--ink);color:#F6F2E7;padding:6px 12px;border-radius:3px;
     max-width:76%;font-size:12.5px}
-  .turn{display:flex;gap:10px;margin-bottom:12px}
+  .turn{display:block;margin-bottom:12px}
   .avatar{width:24px;height:24px;border-radius:3px;background:var(--surface);
     border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0}
   .avatar svg{width:15px;height:12px}
   .turn-body{flex:1;min-width:0}
 
   /* the card is a printed slip: square corners, ruled rows */
-  .built{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden;
-    border-top:0}
-  /* a finished api gets the tape across the top. nothing else does. */
-  .built::before{content:"";display:block;height:4px;background:var(--tape)}
+  .built{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
   .built-top{display:flex;align-items:center;gap:8px;padding:11px 14px 0;flex-wrap:wrap}
   .tick{color:var(--green);font-size:12px}
+  /* a bar you can actually read the stage off, rather than a dot that only
+     says something is happening */
+  .bar{font-family:var(--mono);font-size:12.5px;color:var(--yellow-deep);letter-spacing:-.04em}
+  .phase{font-size:12.5px;color:var(--muted)}
   .kicker{font-size:11.5px;color:var(--muted);letter-spacing:.09em;text-transform:uppercase}
   .name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.02em}
   .badge{font-size:11px;color:var(--muted)}
@@ -551,6 +552,7 @@ const BEE = `<svg viewBox="0 0 32 24"><ellipse cx="12" cy="6" rx="6" ry="3.4" fi
 let es=null, count=0, flow="", lastReplay="", params=[], clientSrc="", t0=0;
 let paramTypes={}, paramDefaults={}, known=[];
 let elThink, elThinkN, elDiff, elDiffN, elWire, elWireN, elTop, elSub, elBuilt;
+let elBar, elPhase, done01 = 0, totalRuns = 3;
 let pLive, pLiveBody, pLiveR, pTry, pTryBody;
 
 fetch("/api/flows").then(r => r.json()).then(flows => {
@@ -589,11 +591,11 @@ function turn(asked, cached) {
   const t = document.createElement("div");
   t.className = "turn";
   t.innerHTML = `
-    <div class="avatar">${BEE}</div>
     <div class="turn-body"><div class="built">
       <div class="built-top">
-        <span class="tick">●</span><span class="kicker">building</span>
         <span class="name">${esc(flow)}</span>
+        <span class="bar"></span>
+        <span class="phase">starting</span>
       </div>
       <div class="built-sub">${cached ? "reusing the capture from last time" : "opening a browser and doing the task three times"}</div>
       <details class="fold" open hidden><summary>how it worked <span class="n"></span></summary>
@@ -609,6 +611,11 @@ function turn(asked, cached) {
   elBuilt = t.querySelector(".built");
   elTop = t.querySelector(".built-top");
   elSub = t.querySelector(".built-sub");
+  elBar = t.querySelector(".bar");
+  elPhase = t.querySelector(".phase");
+  done01 = 0;
+  totalRuns = 3;
+  step(0, "starting");
   elThink = t.querySelector(".think");
   elThinkN = folds[0].querySelector(".n");
   elDiff = folds[1].querySelector(".fold-body");
@@ -665,6 +672,18 @@ function start(name) {
   es.onerror = () => { done(); es.close(); };
 }
 
+// one bar, fourteen cells. it only ever moves forward - a stage that
+// reports late should not make the run look like it went backwards.
+function step(p, label) {
+  if (!elBar) return;
+  // a stage that reports without the numbers to compute a fraction should
+  // leave the bar where it is, not wipe it
+  if (Number.isFinite(p)) done01 = Math.max(done01, Math.min(1, Math.max(0, p)));
+  const N = 14, on = Math.round(done01 * N);
+  elBar.textContent = "[" + "#".repeat(on) + "-".repeat(N - on) + "]";
+  if (label) elPhase.textContent = label;
+}
+
 function done() { $("go").disabled = false; bee(false); }
 
 // a site we've never seen. work out how to vary it, write the flow, run it.
@@ -695,9 +714,8 @@ async function learnNew(asked) {
     done();
     const t = document.createElement("div");
     t.className = "turn";
-    t.innerHTML = `<div class="avatar">${BEE}</div><div class="turn-body"><div class="built">
-      <div class="built-top"><span class="tick" style="color:var(--amber)">!</span>
-        <span class="kicker">can't plan that</span></div>
+    t.innerHTML = `<div class="turn-body"><div class="built">
+      <div class="built-top"><span class="kicker">can't plan that</span></div>
       <div class="built-sub">${esc(res.error)}</div></div></div>`;
     $("turns").appendChild(t);
     return scroll();
@@ -721,9 +739,8 @@ function dontKnow(asked) {
 
   const t = document.createElement("div");
   t.className = "turn";
-  t.innerHTML = `<div class="avatar">${BEE}</div><div class="turn-body"><div class="built">
-    <div class="built-top"><span class="tick" style="color:var(--amber)">!</span>
-      <span class="kicker">not learned yet</span></div>
+  t.innerHTML = `<div class="turn-body"><div class="built">
+    <div class="built-top"><span class="kicker">not learned yet</span></div>
     <div class="built-sub">I can only run sites I've already been shown. Reading a plain
       sentence and going off to learn a new site isn't wired up yet — that needs the
       parser.<br><br>Try one of these: ${known.map(f =>
@@ -744,6 +761,9 @@ function handle(ev) {
 
   if (ev.type === "run-start") {
     pLiveR.textContent = `run ${ev.run} of ${ev.of}`;
+    // capture is the long half of the run, so it owns the first 55%
+    totalRuns = ev.of || totalRuns;
+    step(((ev.run - 1) / totalRuns) * 0.55, `using the site · run ${ev.run} of ${totalRuns}`);
     const what = Object.entries(ev.input).map(([k, v]) => `${k}=${v}`).join(" ");
     say(ev.run === 1 ? `ran the task with <b>${esc(what)}</b>` : `ran it again with <b>${esc(what)}</b>`);
     pLiveBody.innerHTML = ev.liveUrl
@@ -766,14 +786,15 @@ function handle(ev) {
 
   if (ev.type === "run-done") {
     if (ev.sessionUrl) lastReplay = ev.sessionUrl;
+    step((ev.run / totalRuns) * 0.55, `recorded run ${ev.run}`);
     say(`recorded ${ev.exchanges} requests in ${(ev.ms / 1000).toFixed(1)}s`);
     pLiveBody.innerHTML = `<div class="empty">run ${ev.run} captured` +
       (lastReplay ? ` · <a href="${lastReplay}" target="_blank">watch the replay</a>` : "") + `</div>`;
   }
 
-  if (ev.type === "spec") loadSpec();
-  if (ev.type === "client") loadClient();
-  if (ev.type === "verified") finish(ev);
+  if (ev.type === "spec") { step(0.72, "comparing the runs"); loadSpec(); }
+  if (ev.type === "client") { step(0.88, "writing the client"); loadClient(); }
+  if (ev.type === "verified") { step(1, "done"); finish(ev); }
   if (ev.type === "done") {
     done();
     $("status").textContent = "";
