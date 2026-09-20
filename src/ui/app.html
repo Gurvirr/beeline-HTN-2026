@@ -1218,6 +1218,14 @@ function renderTry() {
 function argOf(p) {
   const typed = ($(`p_${p}`)?.value ?? "").trim();
   if (typed) return typed;
+
+  // an empty box is a question, not an omission — but only until you ask a
+  // real one. filling a required argument from its sample while you search
+  // for something else quietly narrows the search: provides=icon-themes and
+  // filter=ultraviolet is a theme that is not an icon theme, so zero rows,
+  // and the filter looks broken when it is working perfectly.
+  const asked = params.some(q => (($(`p_${q}`)?.value ?? "").trim() !== ""));
+  if (asked) return "";
   return paramOptional[p] ? "" : (paramDefaults[p] ?? "");
 }
 
