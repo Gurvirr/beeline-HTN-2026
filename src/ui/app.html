@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>beeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --honey:#E5A42B; --honey-deep:#A96B08; --honey-soft:#FBEFD5; --honey-edge:#EFD9A6;
+    --ground:#FCFAF6; --surface:#FFFFFF; --sunk:#F6F2E9; --rail:#EFE8DA;
+    --ink:#1F1810; --ink-2:#574A38; --muted:#8E8069; --line:#EBE3D4;
+    --green:#3B8A4E; --green-soft:#E8F3EA; --red:#BC4128; --amber:#C08512;
+    --sh-1:0 1px 2px rgba(74,55,24,.05);
+    --sh-2:0 1px 3px rgba(74,55,24,.06), 0 10px 26px -14px rgba(74,55,24,.2);
+    --display:"Fraunces",Georgia,serif;
+    --sans:"DM Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden;
+    background:radial-gradient(1000px 460px at 50% -170px,#FFF8E8 0%,rgba(255,248,232,0) 70%),var(--ground)}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.45;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 0l24 14v28L28 56 4 42V14z' fill='none' stroke='%23E9DDC6' stroke-width='1'/%3E%3Cpath d='M28 48l24 14v28L28 104 4 90V62z' fill='none' stroke='%23E9DDC6' stroke-width='1'/%3E%3C/svg%3E")}
+
+  header{display:flex;align-items:center;gap:11px;padding:12px 24px;z-index:30;
+    border-bottom:1px solid var(--line);background:rgba(252,250,246,.85);backdrop-filter:blur(14px)}
+  .mark{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.025em}
+  .mark em{font-style:normal;color:var(--honey-deep)}
+  .tagline{color:var(--muted);font-size:12.5px;padding-left:11px;border-left:1px solid var(--line)}
+  .spacer{flex:1}
+  .status{font-family:var(--mono);font-size:11px;color:var(--honey-deep);background:var(--honey-soft);
+    padding:4px 11px;border-radius:99px;opacity:0;transition:opacity .2s}
+  .status.on{opacity:1}
+
+  .bee{width:29px;height:24px;flex-shrink:0}
+  .bee .wing{transform-origin:12px 7px;animation:flap .15s ease-in-out infinite alternate}
+  .bee .wing.r{transform-origin:20px 7px}
+  .bee.resting .wing{animation:none;opacity:.5}
+  @keyframes flap{from{transform:rotate(-16deg) scaleY(.9)}to{transform:rotate(18deg)}}
+  .flying{animation:bob 1.5s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
+  @media (prefers-reduced-motion:reduce){.bee .wing,.flying{animation:none}}
+
+  .thread{flex:1;overflow-y:auto;position:relative;z-index:1}
+  .inner{max-width:780px;margin:0 auto;padding:40px 24px 26px}
+
+  .hero{text-align:center;padding:42px 0 10px}
+  .hero h1{font-family:var(--display);font-weight:600;font-size:clamp(28px,4.3vw,40px);
+    margin:0 0 10px;letter-spacing:-.03em;line-height:1.1}
+  .hero h1 em{font-style:italic;color:var(--honey-deep)}
+  .hero p{color:var(--ink-2);margin:0 auto;max-width:44ch;font-size:15px}
+  .hero.gone{display:none}
+  .chips{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+  .chip{font-family:var(--mono);font-size:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:99px;padding:6px 14px;cursor:pointer;color:var(--ink-2);box-shadow:var(--sh-1);transition:.14s}
+  .chip:hover{border-color:var(--honey);color:var(--honey-deep);transform:translateY(-1px)}
+
+  .turn-you{display:flex;justify-content:flex-end;margin:24px 0 16px}
+  .bubble{background:var(--ink);color:#FDFAF3;padding:9px 16px;border-radius:15px 15px 4px 15px;
+    max-width:74%;box-shadow:var(--sh-1)}
+
+  .turn{display:flex;gap:12px;margin-bottom:10px}
+  .avatar{width:29px;height:29px;border-radius:9px;background:var(--honey-soft);
+    border:1px solid var(--honey-edge);display:grid;place-items:center;flex-shrink:0}
+  .avatar svg{width:18px;height:15px}
+  .turn-body{flex:1;min-width:0}
+
+  /* the one card. everything else hangs off it, collapsed. */
+  .built{background:var(--surface);border:1px solid var(--line);border-radius:13px;
+    box-shadow:var(--sh-2);overflow:hidden}
+  .built-top{display:flex;align-items:center;gap:9px;padding:13px 16px;flex-wrap:wrap}
+  .tick{color:var(--green);font-size:14px}
+  .kicker{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted)}
+  .name{font-weight:700;font-size:15px}
+  .badge{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;padding:3px 7px;border-radius:5px;
+    background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+  .badge.heal{background:var(--green-soft);color:var(--green);border-color:#CDE6D3}
+  .headline{margin-left:auto;font-family:var(--display);font-weight:800;font-size:22px;
+    color:var(--green);letter-spacing:-.03em}
+  .built-sub{padding:0 16px 12px;color:var(--ink-2);font-size:13.5px;margin-top:-4px}
+  .built-sub b{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:500}
+
+  /* disclosures */
+  .fold{border-top:1px solid var(--line)}
+  .fold>summary{cursor:pointer;list-style:none;padding:10px 16px;display:flex;align-items:center;
+    gap:9px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);
+    transition:background .14s}
+  .fold>summary::-webkit-details-marker{display:none}
+  .fold>summary:hover{background:var(--sunk);color:var(--honey-deep)}
+  .fold>summary::before{content:"▸";color:var(--honey);font-size:10px}
+  .fold[open]>summary::before{content:"▾"}
+  .fold>summary .n{margin-left:auto;color:var(--ink-2)}
+  .fold-body{padding:4px 16px 15px}
+
+  /* reasoning */
+  .think{border-left:2px solid var(--rail);padding:2px 0 2px 15px}
+  .step{display:flex;gap:9px;padding:3px 0;color:var(--ink-2);font-size:13.5px;opacity:0;
+    transform:translateY(3px);animation:rise .3s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .step .dot{width:14px;flex-shrink:0;color:var(--muted);font-size:11px;text-align:center}
+  .step.key{color:var(--ink);font-weight:500}
+  .step.key .dot{color:var(--green)}
+  .step b{color:var(--honey-deep);font-weight:600;font-family:var(--mono);font-size:12.5px}
+
+  table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11.5px}
+  th{text-align:left;color:var(--muted);font-weight:500;padding:0 11px 7px 0;font-size:9.5px;
+    letter-spacing:.1em;text-transform:uppercase}
+  td{padding:5px 11px 5px 0;white-space:nowrap;max-width:165px;overflow:hidden;
+    text-overflow:ellipsis;border-top:1px solid var(--line)}
+  tr.static td{color:var(--muted)}
+  tr.param td{color:var(--honey-deep);font-weight:600;background:var(--honey-soft)}
+  tr.param td:first-child{box-shadow:inset 3px 0 0 var(--honey)}
+  tr.volatile td{color:var(--amber)}
+  tr.src td{color:var(--amber);font-size:10.5px;border-top:0;padding-top:0;opacity:.85}
+  .tag{font-size:9px;letter-spacing:.1em}
+
+  pre{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink-2);
+    background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:12px 14px;
+    overflow:auto;max-height:300px}
+  .wire{max-height:220px;overflow:auto;font-family:var(--mono);font-size:11px}
+  .req{display:flex;gap:9px;padding:2px 0;color:var(--muted)}
+  .req .m{width:36px;color:var(--ink-2)}
+  .req .p{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .req .s{color:var(--green)} .req .s.bad{color:var(--red)}
+
+  /* docked artifacts, always one click away */
+  .dock{max-width:780px;margin:0 auto;width:100%;padding:0 24px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--sh-2);margin-bottom:9px;overflow:hidden}
+  .panel>summary{cursor:pointer;list-style:none;padding:11px 16px;display:flex;align-items:center;
+    gap:10px;font-size:13.5px}
+  .panel>summary::-webkit-details-marker{display:none}
+  .panel>summary::before{content:"▸";color:var(--honey);font-size:10px}
+  .panel[open]>summary::before{content:"▾"}
+  .panel>summary .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted)}
+  .panel>summary .r{margin-left:auto;color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .panel-body{padding:0 16px 15px}
+  iframe{width:100%;height:330px;border:1px solid var(--line);border-radius:9px;display:block;
+    background:var(--sunk)}
+  .empty{color:var(--muted);padding:22px 0;font-size:13px;text-align:center}
+
+  .tryit{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted)}
+  .field input{font-family:var(--mono);font-size:13px;padding:9px 12px;border:1px solid var(--line);
+    border-radius:9px;background:var(--sunk);color:var(--ink);outline:0;min-width:210px;transition:.14s}
+  .field input:hover{border-color:var(--honey-edge)}
+  .field input:focus{border-color:var(--honey);background:var(--surface);box-shadow:0 0 0 3px var(--honey-soft)}
+  .field label .type{color:var(--honey-deep);background:var(--honey-soft);border-radius:4px;
+    padding:1px 5px;margin-left:3px;letter-spacing:.04em}
+  .curl{display:flex;align-items:center;gap:10px;background:var(--sunk);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;margin-bottom:12px;overflow:auto}
+  .curl code{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;flex:1}
+  .copy{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 10px;
+    font-family:var(--mono);font-size:10.5px;color:var(--muted);cursor:pointer;flex-shrink:0}
+  .copy:hover{border-color:var(--honey);color:var(--honey-deep)}
+  .run{background:var(--ink);color:#FDFAF3;border:0;border-radius:9px;padding:10px 20px;
+    font-family:var(--sans);font-weight:500;font-size:13.5px;cursor:pointer;transition:.14s}
+  .run:hover{background:var(--honey-deep)}
+  .run:disabled{opacity:.4;cursor:default}
+  .resline{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:8px}
+  .resline b{color:var(--green)} .resline b.bad{color:var(--red)}
+
+  .composer{padding:10px 24px 20px;z-index:20}
+  .box{display:flex;gap:10px;align-items:center;max-width:780px;margin:0 auto;background:var(--surface);
+    border:1px solid var(--line);border-radius:15px;padding:7px 7px 7px 18px;box-shadow:var(--sh-2);transition:.16s}
+  .box:focus-within{border-color:var(--honey);box-shadow:0 0 0 4px var(--honey-soft),var(--sh-2)}
+  .box input{flex:1;border:0;outline:0;font-family:var(--sans);font-size:15px;color:var(--ink);
+    background:transparent;padding:9px 0}
+  .box input::placeholder{color:var(--muted)}
+  .go{background:var(--honey);border:0;border-radius:11px;width:39px;height:39px;cursor:pointer;
+    color:#33230A;font-size:16px;flex-shrink:0;transition:.14s}
+  .go:hover{background:var(--honey-deep);color:#fff}
+  .go:disabled{opacity:.4;cursor:default}
+  .opts{display:flex;gap:17px;justify-content:center;margin-top:10px;color:var(--muted);font-size:12px}
+  .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .opts input{accent-color:var(--honey-deep)}
+  a{color:var(--honey-deep)}
+  @media (max-width:640px){.tagline{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="bee resting" id="bee" viewBox="0 0 32 24" aria-hidden="true">
+    <ellipse class="wing" cx="12" cy="6" rx="6.2" ry="3.6" fill="#BFDCEC" opacity=".9"/>
+    <ellipse class="wing r" cx="20" cy="6" rx="6.2" ry="3.6" fill="#BFDCEC" opacity=".9"/>
+    <ellipse cx="16" cy="14" rx="9" ry="7" fill="#E5A42B"/>
+    <path d="M12.5 8.2 A9 7 0 0 0 12.5 19.8" stroke="#1F1810" stroke-width="2.3" fill="none"/>
+    <path d="M17.5 7.6 A9 7 0 0 0 17.5 20.4" stroke="#1F1810" stroke-width="2.3" fill="none"/>
+    <circle cx="23.6" cy="12.4" r="1" fill="#1F1810"/>
+  </svg>
+  <div class="mark">bee<em>line</em></div>
+  <div class="tagline">every website already has an API</div>
+  <div class="spacer"></div>
+  <div class="status" id="status"></div>
+</header>
+
+<div class="thread" id="thread">
+  <div class="inner">
+    <section class="hero" id="hero">
+      <h1>Every website already<br>has an <em>API</em>.</h1>
+      <p>Name one and what you want from it. Beeline uses it once, works out the call underneath, and writes you a client.</p>
+      <div class="chips" id="chips"></div>
+    </section>
+    <div id="turns"></div>
+  </div>
+</div>
+
+<div class="dock" id="dock"></div>
+
+<div class="composer">
+  <div class="box">
+    <input id="prompt" autocomplete="off" placeholder="get oscar films by year from scrapethissite.com">
+    <button class="go" id="go" title="build it">&rarr;</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="cloud" checked> run in the cloud</label>
+    <label><input type="checkbox" id="cached"> reuse last capture</label>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const BRAIN = "https://beeline-brain.gurvirrandhawa28.workers.dev";
+const BEE = `<svg viewBox="0 0 32 24"><ellipse cx="12" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="20" cy="6" rx="6" ry="3.4" fill="#BFDCEC"/><ellipse cx="16" cy="14" rx="8.6" ry="6.8" fill="#E5A42B"/><path d="M12.5 8.4 A8.6 6.8 0 0 0 12.5 19.6" stroke="#1F1810" stroke-width="2.2" fill="none"/><path d="M17.5 7.8 A8.6 6.8 0 0 0 17.5 20.2" stroke="#1F1810" stroke-width="2.2" fill="none"/></svg>`;
+
+let es=null, count=0, flow="", lastReplay="", params=[], clientSrc="", t0=0;
+let paramTypes={}, paramDefaults={}, known=[];
+let elThink, elThinkN, elDiff, elDiffN, elWire, elWireN, elTop, elSub, elBuilt;
+let pLive, pLiveBody, pLiveR, pTry, pTryBody;
+
+fetch("/api/flows").then(r => r.json()).then(flows => {
+  known = flows;
+  $("chips").innerHTML = flows.map(f => `<button class="chip" data-flow="${f}">${f}</button>`).join("");
+  $("chips").onclick = (e) => { const f = e.target.dataset.flow; if (f) { $("prompt").value = f; start(f); } };
+});
+$("go").onclick = () => start($("prompt").value.trim());
+$("prompt").addEventListener("keydown", e => { if (e.key === "Enter") start($("prompt").value.trim()); });
+
+const bee = (fly) => {
+  $("bee").classList.toggle("resting", !fly);
+  $("bee").classList.toggle("flying", fly);
+  $("status").classList.toggle("on", fly);
+};
+const scroll = () => $("thread").scrollTo({ top: $("thread").scrollHeight, behavior: "smooth" });
+
+function say(html, key) {
+  const d = document.createElement("div");
+  d.className = "step" + (key ? " key" : "");
+  d.innerHTML = `<span class="dot">${key ? "✓" : "·"}</span><span>${html}</span>`;
+  elThink.appendChild(d);
+  elThinkN.textContent = `${elThink.childElementCount} steps`;
+  const fold = elThink.closest(".fold");
+  fold.hidden = false;
+  fold.open = true;
+  scroll();
+}
+
+function turn(asked, cached) {
+  $("hero").classList.add("gone");
+  const you = document.createElement("div");
+  you.className = "turn-you";
+  you.innerHTML = `<div class="bubble">${esc(asked)}</div>`;
+  $("turns").appendChild(you);
+
+  const t = document.createElement("div");
+  t.className = "turn";
+  t.innerHTML = `
+    <div class="avatar">${BEE}</div>
+    <div class="turn-body"><div class="built">
+      <div class="built-top">
+        <span class="tick">●</span><span class="kicker">building</span>
+        <span class="name">${esc(flow)}</span>
+      </div>
+      <div class="built-sub">${cached ? "reusing the capture from last time" : "opening a browser and doing the task three times"}</div>
+      <details class="fold" open hidden><summary>how it worked <span class="n"></span></summary>
+        <div class="fold-body"><div class="think"></div></div></details>
+      <details class="fold" hidden><summary>what changed across runs <span class="n"></span></summary>
+        <div class="fold-body"></div></details>
+      <details class="fold" hidden><summary>traffic it recorded <span class="n"></span></summary>
+        <div class="fold-body"><div class="wire"></div></div></details>
+    </div></div>`;
+  $("turns").appendChild(t);
+
+  const folds = t.querySelectorAll(".fold");
+  elBuilt = t.querySelector(".built");
+  elTop = t.querySelector(".built-top");
+  elSub = t.querySelector(".built-sub");
+  elThink = t.querySelector(".think");
+  elThinkN = folds[0].querySelector(".n");
+  elDiff = folds[1].querySelector(".fold-body");
+  elDiffN = folds[1].querySelector(".n");
+  elWire = t.querySelector(".wire");
+  elWireN = folds[2].querySelector(".n");
+  scroll();
+}
+
+function dock(cached) {
+  $("dock").innerHTML = `
+    <details class="panel" id="pLive"${cached ? "" : " open"}>
+      <summary><span class="lbl">live browser</span><span class="r"></span></summary>
+      <div class="panel-body"><div class="empty">${cached ? "no browser this time — reusing the last capture" : "opening a browser…"}</div></div>
+    </details>
+    <details class="panel" id="pTry">
+      <summary><span class="lbl">try it</span><span class="r">ready once it's built</span></summary>
+      <div class="panel-body"><div class="empty">waiting for the client</div></div>
+    </details>`;
+  pLive = $("pLive"); pLiveBody = pLive.querySelector(".panel-body"); pLiveR = pLive.querySelector(".r");
+  pTry = $("pTry"); pTryBody = pTry.querySelector(".panel-body");
+}
+
+function start(name) {
+  if (!name) return;
+
+  // find a flow we actually have. free-text prompts aren't parsed yet, so
+  // rather than mangling the sentence into a name that doesn't exist and
+  // failing silently, say so.
+  const words = name.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
+  flow = known.find(f => words.includes(f)) ?? (known.includes(name) ? name : "");
+
+  // not one we know? if there's a url in there, go and learn it
+  if (!flow) {
+    if (/\.[a-z]{2,}/i.test(name)) return learnNew(name);
+    return dontKnow(name);
+  }
+
+  $("prompt").value = "";
+  if (es) es.close();
+  count = 0; lastReplay = ""; clientSrc = ""; params = []; t0 = Date.now();
+
+  const cached = $("cached").checked;
+  turn(name, cached);
+  dock(cached);
+  $("go").disabled = true;
+  bee(true);
+  if (cached) say("using the capture from last time");
+
+  const q = new URLSearchParams({ flow, cloud: $("cloud").checked ? "1" : "0", cached: cached ? "1" : "0" });
+  es = new EventSource("/api/run?" + q);
+  es.onmessage = (e) => handle(JSON.parse(e.data));
+  es.onerror = () => { done(); es.close(); };
+}
+
+function done() { $("go").disabled = false; bee(false); }
+
+// a site we've never seen. work out how to vary it, write the flow, run it.
+async function learnNew(asked) {
+  $("prompt").value = "";
+  $("go").disabled = true;
+  bee(true);
+  $("hero").classList.add("gone");
+
+  const you = document.createElement("div");
+  you.className = "turn-you";
+  you.innerHTML = `<div class="bubble">${esc(asked)}</div>`;
+  $("turns").appendChild(you);
+  scroll();
+
+  let res;
+  try {
+    res = await (await fetch("/api/new", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: asked }),
+    })).json();
+  } catch {
+    res = { error: "couldn't reach the planner" };
+  }
+
+  if (res.error) {
+    done();
+    const t = document.createElement("div");
+    t.className = "turn";
+    t.innerHTML = `<div class="avatar">${BEE}</div><div class="turn-body"><div class="built">
+      <div class="built-top"><span class="tick" style="color:var(--amber)">!</span>
+        <span class="kicker">can't plan that</span></div>
+      <div class="built-sub">${esc(res.error)}</div></div></div>`;
+    $("turns").appendChild(t);
+    return scroll();
+  }
+
+  if (!known.includes(res.flow)) known.push(res.flow);
+  $("prompt").value = res.flow;
+  start(res.flow);
+  // say what it decided, once the turn exists
+  setTimeout(() => say(`never seen that site — ${esc(res.why)}`), 60);
+}
+
+// asked for something we haven't learned. this is a real answer, not an error
+function dontKnow(asked) {
+  $("prompt").value = "";
+  $("hero").classList.add("gone");
+  const you = document.createElement("div");
+  you.className = "turn-you";
+  you.innerHTML = `<div class="bubble">${esc(asked)}</div>`;
+  $("turns").appendChild(you);
+
+  const t = document.createElement("div");
+  t.className = "turn";
+  t.innerHTML = `<div class="avatar">${BEE}</div><div class="turn-body"><div class="built">
+    <div class="built-top"><span class="tick" style="color:var(--amber)">!</span>
+      <span class="kicker">not learned yet</span></div>
+    <div class="built-sub">I can only run sites I've already been shown. Reading a plain
+      sentence and going off to learn a new site isn't wired up yet — that needs the
+      parser.<br><br>Try one of these: ${known.map(f =>
+        `<button class="chip" data-flow="${f}" style="margin:4px 4px 0 0">${f}</button>`).join("")}</div>
+  </div></div>`;
+  t.querySelector(".built-sub").addEventListener("click", (e) => {
+    const f = e.target.dataset.flow;
+    if (f) start(f);
+  });
+  $("turns").appendChild(t);
+  $("dock").innerHTML = "";
+  scroll();
+}
+
+function handle(ev) {
+  if (ev.type === "stage") $("status").textContent = ev.name;
+
+  if (ev.type === "run-start") {
+    pLiveR.textContent = `run ${ev.run} of ${ev.of}`;
+    const what = Object.entries(ev.input).map(([k, v]) => `${k}=${v}`).join(" ");
+    say(ev.run === 1 ? `ran the task with <b>${esc(what)}</b>` : `ran it again with <b>${esc(what)}</b>`);
+    pLiveBody.innerHTML = ev.liveUrl
+      ? `<iframe src="${ev.liveUrl}" sandbox="allow-scripts allow-same-origin"></iframe>`
+      : `<div class="empty">running locally — tick “run in the cloud” to watch</div>`;
+  }
+
+  if (ev.type === "exchange") {
+    count++;
+    elWireN.textContent = `${count} requests`;
+    const r = document.createElement("div");
+    r.className = "req";
+    r.innerHTML = `<span class="m">${ev.method}</span><span class="p">${esc(ev.path)}</span><span class="s${ev.status >= 400 ? " bad" : ""}">${ev.status}</span>`;
+    elWire.closest(".fold").hidden = false;
+    elWire.appendChild(r);
+    while (elWire.childElementCount > 150) elWire.removeChild(elWire.firstChild);
+    elWire.scrollTop = elWire.scrollHeight;
+  }
+
+  if (ev.type === "run-done") {
+    if (ev.sessionUrl) lastReplay = ev.sessionUrl;
+    say(`recorded ${ev.exchanges} requests in ${(ev.ms / 1000).toFixed(1)}s`);
+    pLiveBody.innerHTML = `<div class="empty">run ${ev.run} captured` +
+      (lastReplay ? ` · <a href="${lastReplay}" target="_blank">watch the replay</a>` : "") + `</div>`;
+  }
+
+  if (ev.type === "spec") loadSpec();
+  if (ev.type === "client") loadClient();
+  if (ev.type === "verified") finish(ev);
+  if (ev.type === "done") {
+    done();
+    $("status").textContent = "";
+    if (ev.code !== 0) {
+      elTop.innerHTML = `<span class="tick" style="color:var(--red)">×</span>
+        <span class="kicker">couldn't build it</span><span class="name">${esc(flow)}</span>`;
+      elSub.textContent = "The pipeline stopped early. The run log is in the terminal.";
+    }
+  }
+}
+
+async function loadSpec() {
+  const spec = await (await fetch(`/api/spec?flow=${flow}`)).json();
+  const runs = spec.fields[0]?.samples.length ?? 0;
+  const order = { param: 0, volatile: 1, static: 2 };
+  const fields = [...spec.fields].sort((a, b) => order[a.kind] - order[b.kind]);
+  params = [...new Set(fields.filter(f => f.kind === "param" && f.boundTo).map(f => f.boundTo))];
+
+  // every sample numeric? then it's a number. cheap, and it makes the
+  // generated api look like something someone designed
+  paramTypes = {}; paramDefaults = {};
+  for (const f of fields.filter(f => f.kind === "param" && f.boundTo)) {
+    paramTypes[f.boundTo] = f.samples.every(s => s !== "" && !isNaN(Number(s))) ? "int" : "str";
+    paramDefaults[f.boundTo] = f.samples[f.samples.length - 1] ?? "";
+  }
+
+  say("lined the runs up and compared every field");
+  for (const f of fields.filter(f => f.kind === "param"))
+    say(`<b>${esc(f.name)}</b> followed your input — that's the parameter`, true);
+  for (const f of fields.filter(f => f.kind === "volatile"))
+    say(`<b>${esc(f.name)}</b> changed on its own — ${esc(describe(f.source))}`, true);
+
+  const rows = fields.map(f => {
+    const cells = f.samples.map(s => `<td>${esc(s)}</td>`).join("");
+    const tag = f.kind === "param" ? `PARAM (${f.boundTo ?? ""})` : f.kind === "volatile" ? "VOLATILE" : "";
+    let html = `<tr class="${f.kind}"><td>${f.location}</td><td>${esc(f.name)}</td>${cells}<td class="tag">${tag}</td></tr>`;
+    if (f.kind === "volatile" && f.source)
+      html += `<tr class="src"><td></td><td colspan="${runs + 2}">&#8627; ${esc(describe(f.source))}</td></tr>`;
+    return html;
+  }).join("");
+
+  elDiff.closest(".fold").hidden = false;
+  elDiffN.textContent = ["param", "volatile", "static"]
+    .map(k => `${fields.filter(f => f.kind === k).length} ${k}`).join(" · ");
+  elDiff.innerHTML = `<table><tr><th>in</th><th>field</th>${
+    Array.from({ length: runs }, (_, i) => `<th>run ${i + 1}</th>`).join("")}<th></th></tr>${rows}</table>`;
+}
+
+function describe(s) {
+  if (!s) return "no source found";
+  if (s.kind === "timestamp") return "it's a clock";
+  if (s.kind === "unresolved") return "couldn't trace it — " + s.note;
+  const v = s.via;
+  const where = v.in === "set-cookie" ? "a cookie the site set"
+    : v.in === "header" ? `the ${v.header} header`
+    : v.in === "json" ? "an earlier response" : "the page HTML";
+  return `found it in ${where}, from ${s.fromMethod} ${s.fromPath}`;
+}
+
+async function loadClient() {
+  clientSrc = await (await fetch(`/api/client?flow=${flow}`)).text();
+  say(`wrote ${clientSrc.split("\n").length} lines of typed client`, true);
+}
+
+function finish(ev) {
+  const secs = ((Date.now() - t0) / 1000).toFixed(0);
+  elTop.innerHTML =
+    `<span class="tick">✓</span><span class="kicker">api built</span>
+     <span class="name">${esc(flow)}</span>
+     <span class="badge">${secs}s</span>
+     <span class="badge heal">self-healing</span>
+     <span class="headline">${ev.speedup}×</span>`;
+  elSub.innerHTML = `<b>${ev.httpMs}ms</b> over HTTP instead of <b>${ev.browserMs}ms</b> through a browser — same data, nothing rendering a page.`;
+
+  const fields = params.length
+    ? params.map(p => {
+        const t = paramTypes[p] ?? "str";
+        return `<div class="field"><label>${esc(p)} <span class="type">${t}</span></label>
+          <input id="p_${esc(p)}" value="${esc(paramDefaults[p] ?? "")}"></div>`;
+      }).join("")
+    : `<div class="field"><label>no parameters</label></div>`;
+
+  // the curl has to track what's actually in the boxes. building it once from
+  // the captured sample means it quietly disagrees with the thing you just ran.
+  const curlFor = () => {
+    const q = params
+      .map(p => `${p}=${encodeURIComponent($(`p_${p}`)?.value ?? paramDefaults[p] ?? "")}`)
+      .join("&");
+    return `curl "${BRAIN}/call/${flow}${q ? "?" + q : ""}"`;
+  };
+
+  pTry.querySelector(".r").textContent = `${params.length || "no"} parameter${params.length === 1 ? "" : "s"}`;
+  pTry.open = true;
+  pLive.open = false;
+  pTryBody.innerHTML =
+    `<div class="tryit">${fields}<button class="run" id="callit">Run it</button></div>
+     <div class="curl"><code id="curlcode"></code><button class="copy" id="copycurl">copy</button></div>
+     <div id="callout"></div>
+     <details class="fold" style="border:0;margin-top:10px">
+       <summary style="padding-left:0">the client it wrote</summary>
+       <div class="fold-body" style="padding-left:0"><pre>${esc(clientSrc)}</pre></div></details>`;
+  const paintCurl = () => ($("curlcode").textContent = curlFor());
+  paintCurl();
+  for (const p of params) $(`p_${p}`)?.addEventListener("input", paintCurl);
+
+  $("callit").onclick = call;
+  $("copycurl").onclick = (e) => {
+    navigator.clipboard?.writeText(curlFor());
+    e.target.textContent = "copied";
+    setTimeout(() => (e.target.textContent = "copy"), 1400);
+  };
+  say("done — try it in the panel below", true);
+}
+
+async function call() {
+  const args = new URLSearchParams();
+  for (const p of params) args.set(p, $(`p_${p}`).value);
+  $("callit").disabled = true;
+  $("callout").innerHTML = `<div class="resline">calling…</div>`;
+  const started = performance.now();
+  try {
+    args.set("flow", flow);
+    const res = await fetch(`/api/try?${args}`);
+    const body = await res.json();
+    if (body.error) throw new Error(body.error);
+    // an api can answer with a thousand rows. dumping them all into the page
+    // is unreadable and silently cutting it off looks like a bug, so say how
+    // many there are and show the first few.
+    const list = Array.isArray(body.data)
+      ? body.data
+      : Array.isArray(body.data?.data)
+        ? body.data.data
+        : null;
+    const SHOW = 8;
+    const shown = list ? list.slice(0, SHOW) : body.data;
+    const count = list ? `${list.length} items · ` : "";
+    const more =
+      list && list.length > SHOW
+        ? `
+
+… ${list.length - SHOW} more — the client returns all of them`
+        : "";
+    $("callout").innerHTML =
+      `<div class="resline"><b>${body.status}</b> · ${count}${body.ms}ms · live from the API beeline just built</div>
+       <pre>${esc(JSON.stringify(shown, null, 2) + more)}</pre>`;
+  } catch (err) {
+    $("callout").innerHTML = `<div class="resline"><b class="bad">failed</b> — ${esc(err.message || err)}</div>`;
+  }
+  $("callit").disabled = false;
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c])); }
+</script>
+</body>
+</html>

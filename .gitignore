@@ -1,6 +1,8 @@
 node_modules/
 *.log
-*.html
+# the prizes dump, not ours to publish. the dashboard is html too, so
+# don't blanket-ignore it.
+prizes.html
 *.zip
 
 .env
