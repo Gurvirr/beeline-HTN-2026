@@ -29,5 +29,8 @@
   },
   "bin": {
     "beeline": "./bin/beeline.js"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

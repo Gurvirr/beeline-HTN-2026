@@ -147,3 +147,27 @@ flows          one file per site
 ```
 
 Built at Hack the North 2026.
+
+## Running it somewhere else
+
+The dashboard is a plain Node server, so anything that runs `npm ci && npm start`
+will host it. It reads `PORT` from the environment.
+
+```
+LLM_API_KEY=...            # the planner and the page reader
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.4-mini
+BASETEN_API_KEY=...        # optional: proposes extra parameters to probe
+BROWSERBASE_API_KEY=...    # required if you want live capture
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+```
+
+Two things to know before you point anyone at it.
+
+**Leave "run in the cloud" ticked.** Cloud capture connects to Browserbase over
+CDP and needs no local browser. Untick it and it calls `chromium.launch()`,
+which is not there on a host that skipped the browser download.
+
+**Anything learned on a deployed instance is temporary.** `out/` and `traces/`
+are written to disk, so they reset whenever the host redeploys. The specs
+committed to the repo are what the library shows on a fresh boot.
