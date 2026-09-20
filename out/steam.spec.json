@@ -113,13 +113,22 @@
     {
       "location": "header",
       "name": "referer",
-      "kind": "param",
+      "kind": "volatile",
       "samples": [
         "https://store.steampowered.com/search/?term=portal",
         "https://store.steampowered.com/search/?term=stardew",
         "https://store.steampowered.com/search/?term=hades"
       ],
-      "boundTo": "term"
+      "source": {
+        "kind": "derived",
+        "fromExchangeId": "x0113",
+        "fromMethod": "GET",
+        "fromPath": "/search/",
+        "via": {
+          "in": "html",
+          "pattern": "\t\tg_strUnfilteredURL = '([^\"'<\\s]+)"
+        }
+      }
     },
     {
       "location": "header",
@@ -260,7 +269,8 @@
       "provides": [
         "browserid",
         "sessionid",
-        "steamCountry"
+        "steamCountry",
+        "referer"
       ]
     }
   ],
@@ -305,7 +315,7 @@
   ],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-19T20:41:52.914Z",
+    "generatedAt": "2026-09-20T00:23:40.145Z",
     "browserMs": 4220
   }
 }
