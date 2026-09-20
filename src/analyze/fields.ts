@@ -126,9 +126,18 @@ export function pickTarget(
   // xhr and fetch are the obvious ones, but navigating straight at an endpoint
   // makes it a document — and a document that parsed into json is data, not a
   // page. that's the whole shape of a url-driven capture.
+  // telemetry endpoints take a payload and answer with nothing. whatever the
+  // user asked for, it is something the server sends back
+  const returnsData = (x: Exchange) => {
+    const b = x.responseBody;
+    if (b === null || b === undefined) return false;
+    if (typeof b === "string") return b.length > 40;
+    return Object.keys(b as object).length > 0;
+  };
+
   const dataFetches = candidates.filter(
     (x) =>
-      x.responseBody !== null &&
+      returnsData(x) &&
       (x.resourceType === "xhr" ||
         x.resourceType === "fetch" ||
         (x.resourceType === "document" && typeof x.responseBody === "object")),
@@ -143,14 +152,19 @@ export function pickTarget(
   // the input went out in a state-changing request: this request *was* the
   // action. covers form submissions, which are documents rather than XHR.
   const submitted = candidates.filter(
-    (x) => x.method !== "GET" && inputValues.some((v) => requestOf(x).includes(v)),
+    (x) =>
+      x.method !== "GET" &&
+      returnsData(x) &&
+      inputValues.some((v) => v.length >= 3 && requestOf(x).includes(v)),
   );
   if (submitted.length) return submitted[0];
 
   if (dataFetches.length) return largestBody(dataFetches);
 
-  // nothing echoed the input, but something changed state. better than nothing
-  return candidates.find((x) => x.method !== "GET");
+  // nothing echoed the input, but something changed state and answered with
+  // something. if even that is missing there is no api here — say so by
+  // returning nothing, and the html fallback takes over.
+  return candidates.find((x) => x.method !== "GET" && returnsData(x));
 }
 
 function largestBody(pool: Exchange[]): Exchange | undefined {

@@ -62,7 +62,10 @@ export class Recorder {
 
   // wait for in-flight recordings, then return everything in wire order
   async stop(): Promise<Exchange[]> {
-    await Promise.allSettled([...this.pending]);
+    await Promise.race([
+      Promise.allSettled([...this.pending]),
+      new Promise((r) => setTimeout(r, 8000)),
+    ]);
     return [...this.exchanges].sort((a, b) => a.t - b.t);
   }
 
@@ -78,11 +81,19 @@ async function readBody(response: any): Promise<unknown> {
 
   if (!/json|text|javascript|html|xml/i.test(type)) return null;
 
+  // js bundles are megabytes of minified noise and we have never needed one —
+  // tokens live in html, json and headers. reading them made capture crawl on
+  // heavy pages and blew trace files up to hundreds of megabytes.
+  const isScript = /javascript|ecmascript/i.test(type);
+  const cap = isScript ? 50_000 : 500_000;
+
+  const length = Number(await safe(() => response.headerValue("content-length"), null));
+  if (isScript && length > cap) return null;
+
   const text = await safe(() => response.text(), null);
   if (text === null) return null;
 
-  // don't let one enormous bundle dominate a trace file
-  if (text.length > 2_000_000) return text.slice(0, 2_000_000);
+  if (text.length > cap) return isScript ? null : text.slice(0, cap);
 
   return /json/i.test(type) ? tryJson(text) : text;
 }
@@ -111,7 +122,11 @@ function tryJson(text: string): unknown {
 // playwright throws on bodies it can't reach (redirects, aborted requests)
 async function safe<T>(fn: () => T | Promise<T>, fallback: T): Promise<T> {
   try {
-    return await fn();
+    // a streaming response never finishes, so never wait on one forever
+    return await Promise.race([
+      Promise.resolve(fn()),
+      new Promise<T>((r) => setTimeout(() => r(fallback), 4000)),
+    ]);
   } catch {
     return fallback;
   }
