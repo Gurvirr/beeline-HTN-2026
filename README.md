@@ -1,94 +1,149 @@
 # beeline
 
-Perform a web flow once in a browser. Get back a typed SDK that does the same
-thing over raw HTTP, with no browser at all.
+**Every website already has an API. Beeline finds it.**
 
-Most sites have no public API. Automating them today means driving a headless
-browser — seconds per call, and it breaks whenever the UI is redesigned.
-beeline watches the network while you do the thing once, works out the protocol
-underneath, and compiles it into a standalone client.
+Use a site once. Beeline watches what the page says to its own server, works out
+the call underneath, and writes you a typed client that makes that call
+directly — no browser, no scraping, no selectors.
+
+```
+$ beeline learn films --cloud
+
+  ran the task with year=2010 · 36 requests
+  ran it again with year=2012 · 36 requests
+  ran it again with year=2015 · 36 requests
+  year followed your input — that's the parameter
+  wrote 52 lines of typed client
+
+  PASS  200 · schema matches
+  90ms over HTTP · 2099ms via the browser · 23.3x faster
+```
 
 ## How it works
 
-```
-flow ──capture──> traces ──analyze──> spec ──synth──> client.ts ──verify──> ✓
-```
+Almost every modern page fetches its data from an undocumented endpoint. That
+endpoint is an API nobody published. Beeline recovers it by **differential
+capture**:
 
-**capture** drives the flow three times with different inputs, recording every
-request and response.
+1. **Capture** — do the task three times with different inputs, recording every
+   request the page makes.
+2. **Analyze** — line the runs up and compare every field:
+   - identical every run → **static**, freeze it
+   - follows your input → **parameter**, make it an argument
+   - changes on its own → **token**, so trace it back through the trace to the
+     response that issued it
+3. **Synthesize** — emit a standalone typed client, including the handshake
+   needed to get those tokens.
+4. **Verify** — call it with an input it has never seen and check the response
+   still matches what was learned.
 
-**analyze** diffs the runs field by field:
-
-| behaviour across runs | classification | what happens to it |
-| --- | --- | --- |
-| identical every run | `static` | frozen into the client |
-| tracks a flow input | `param` | becomes a function argument |
-| changes on its own | `volatile` | resolved separately |
-
-Volatile fields are then traced to their origin. A token the client sends must
-have reached the client somehow, so it's sitting in an earlier response — find
-it there and you have a bootstrap step. Values that look like clocks become
-`Date.now()`. Anything with no traceable source is reported as unresolved
-rather than silently baked in.
-
-**synth** compiles the spec to TypeScript. **verify** calls the generated
-client with an input it has never seen and diffs the response against the
-captured schema.
-
-Three runs is the practical minimum. With two, a session token that happened to
+Three runs is the minimum that works. With two, a session token that happened to
 change is indistinguishable from a parameter that happened to change.
 
-## Usage
+## Quick start
 
 ```bash
 npm install
-npx playwright install chromium   # optional — uses system Chrome by default
+npm link                      # puts `beeline` on your path
+echo "BROWSERBASE_API_KEY=..." > .env
 
-npm run capture -- flows/films.ts          # add --headed to watch
-npm run analyze -- films
-npm run synth   -- films
-npm run verify  -- films year=2014
+beeline learn films --cloud   # capture, analyze, synthesize, verify
+beeline ui                    # the dashboard, on localhost:4000
 ```
+
+Then use what it wrote:
+
+```ts
+import { FilmsClient } from "./out/films.client.js";
+
+const films = new FilmsClient();
+const results = await films.call({ year: "2015" });
+// [{ title: "Spotlight", year: 2015, awards: 2, nominations: 6 }, ...]
+```
+
+## Commands
+
+```
+beeline learn <flow>       capture, analyze, synthesize, verify
+beeline ui                 the dashboard
+beeline diff <flow>        what changed across runs, and what we concluded
+beeline verify <flow>      run the client again and time it
+beeline deploy <flow>      put the client behind a Cloudflare Worker
+
+beeline remember <flow>    teach the brain an api
+beeline health             what it knows, and what has drifted
+beeline check <flow>       go look right now
+```
+
+Flags: `--cloud` (Browserbase instead of local Chrome), `--headed`,
+`--from-cache` (skip capture, reuse the last recordings).
+
+## The brain
+
+Learning an API is only half of it — sites change without telling anyone. The
+brain is a Cloudflare Worker that remembers every API beeline has learned, and
+keeps calling them to check the sites still behave:
+
+- **D1** stores each spec and its check history
+- **Cron** re-checks everything every 15 minutes, unprompted
+- **Drift detection** reports exactly what changed: `$[0].director: missing`
+- **Self-healing** — if the request still works and only the response shape
+  moved, it relearns the schema itself and carries on
+
+It also serves every learned API, so they're callable from anything:
+
+```bash
+curl "https://beeline-brain.gurvirrandhawa28.workers.dev/call/films?year=2015"
+```
+
+It executes specs generically, so it can run any API beeline has ever learned
+without that client being compiled into it.
 
 ## Writing a flow
 
-```ts
-import type { Flow } from "../src/types.js";
+A flow says where to go and what to do. Either script it:
 
+```ts
 const flow: Flow = {
   name: "films",
-  entry: "https://example.com/search",
+  entry: "https://www.scrapethissite.com/pages/ajax-javascript/",
   inputs: [{ year: "2010" }, { year: "2012" }, { year: "2015" }],
-
   async run(page, input) {
-    await page.getByRole("link", { name: input.year }).click();
-    await page.waitForSelector(".results");   // wait for the XHR, not a sleep
+    await page.getByRole("link", { name: input.year, exact: true }).click();
+    await page.waitForSelector("#table-body tr");
   },
 };
-
-export default flow;
 ```
 
-Vary exactly one thing at a time across inputs. The analyzer infers meaning
-from what changed, so a flow where two inputs move together can't be
-disambiguated.
+…or describe it, and let Stagehand work out the clicking:
+
+```ts
+  task: "type {q} into the search box and press Enter",
+```
 
 ## What it can't do
 
-- **Client-side signed requests.** If the payload is hashed by obfuscated JS,
-  the information isn't in the traffic and can't be recovered from it.
-- **TLS fingerprinting.** Some sites check the handshake, so a perfect request
-  still gets blocked because the client isn't Chrome.
-- **Server-rendered pages with no JSON API.** There's no protocol to recover —
-  the response *is* the HTML.
+- **Server-rendered pages.** If the data arrives baked into the HTML there is no
+  network call to find. RateMyProfessors is like this — we tried.
+- **Requests signed by obfuscated client-side JS.** The information isn't in the
+  traffic, so it can't be recovered from the traffic.
+- **Sites that fingerprint TLS.** A plain HTTP client doesn't look like Chrome.
+- Datacenter IPs get rate-limited by some sites (Steam does this), so the brain
+  can be throttled where a local client isn't.
 
-These are reported, not hidden. `verify` fails loudly with a precise diff.
+Beeline says which of these it hit rather than guessing.
 
-## Notes on the numbers
+## Layout
 
-`browserMs` is measured from flow start to the moment the target request
-fires. It's a fair proxy for the browser path but doesn't include full page
-render, so the real-world gap is wider than the reported speedup.
+```
+src/capture    drive the flow, record everything off the wire
+src/analyze    diff the runs, classify fields, trace tokens to their source
+src/synth      spec -> standalone typed client
+src/verify     call it for real and compare
+src/runtime    run a spec directly, without generating code (used by the brain)
+src/ui         the dashboard
+workers/brain  memory, health checks, self-healing, on Cloudflare
+flows          one file per site
+```
 
-The size of the speedup depends heavily on the target: a lightweight page
-gives maybe 5×, a heavy SPA with a long boot sequence gives far more.
+Built at Hack the North 2026.
