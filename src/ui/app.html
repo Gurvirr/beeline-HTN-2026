@@ -288,23 +288,29 @@ const $ = (id) => document.getElementById(id);
 
 // ---- the field ----------------------------------------------------------
 //
-// the bee, drawn as ascii. not an image dropped in: every frame we sample a
-// shape field - body, stripes, head, two wings that actually beat - and pick
-// a character per cell by how much of it is covered. that is why it can flap
-// without a single frame of artwork.
+// a torus, turned in three dimensions and printed as characters. this is the
+// real thing rather than a picture of one: every frame walks the surface,
+// rotates each point about two axes, projects it through a perspective
+// divide, keeps the nearest hit in a z-buffer, and picks a glyph from how
+// much light lands on that point's normal.
 //
-// while a capture is running, requests streak across it. those are real: one
-// per exchange the recorder reports.
+// the comb is mapped onto the surface, so it turns with it and you can read
+// the curvature from the way the cells compress at the edges.
+//
+// while a capture runs, requests streak across it - one per exchange the
+// recorder actually reports.
 const field = (() => {
   const cv = document.getElementById("bg");
   const ctx = cv.getContext("2d");
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const CW = 7, CH = 9;                      // fine grid = high definition
-  const RAMP = " .:-=+*#%@";
+  const CW = 7, CH = 9;
+  const RAMP = ".,-~:;=!*#$@";
   const LIVE = "01░▸─≡·";
 
-  let cols = 0, rows = 0, dpr = 1, R = 0, cx = 0, cy = 0;
+  let cols = 0, rows = 0, dpr = 1, K1 = 0;
+  const R1 = 1, R2 = 2.1, K2 = 6.5;       // tube, ring, distance from the eye
+  let zbuf = null, cbuf = null, tbuf = null;
   let cells = new Map();
 
   function size() {
@@ -316,49 +322,15 @@ const field = (() => {
     ctx.textBaseline = "top";
     cols = Math.ceil(innerWidth / CW) + 1;
     rows = Math.ceil(innerHeight / CH) + 1;
-    // the bee spans about 2.9R across and 1.6R down, so size it to sit
-    // inside the viewport with room rather than crashing into the edges
-    R = Math.min(innerWidth / 3.4, innerHeight / 2.2);
-    cx = innerWidth * 0.5;
-    cy = innerHeight * 0.58;
+    zbuf = new Float32Array(cols * rows);
+    cbuf = new Uint8Array(cols * rows);
+    tbuf = new Uint8Array(cols * rows);
+    // the projected torus is about 0.95*K1 cells wide and 0.48*K1 tall, so
+    // solve for the K1 that leaves it sitting inside the viewport with room
+    K1 = Math.min(cols * 0.24, rows * 0.53);
   }
   size();
   addEventListener("resize", size);
-
-  // how much bee covers this point, and which part of it.
-  // 1 = dark (head, gaps between bands, stinger), 2 = banded body, 3 = wing.
-  function sample(px, py, t) {
-    const u = (px - cx) / R, v = (py - cy) / R;
-
-    // wings sit over the thorax and beat. squashing them on the short axis
-    // is what sells the flap - a rotation alone just looks like scissors.
-    const beat = Math.sin(t * 9);
-    const sq = 0.30 + 0.70 * Math.abs(Math.cos(t * 9));
-    for (const side of [-1, 1]) {
-      const hx = u - side * 0.18, hy = v + 0.62;
-      const a = side * (0.55 + beat * 0.30);
-      const rx = hx * Math.cos(a) - hy * Math.sin(a);
-      const ry = hx * Math.sin(a) + hy * Math.cos(a);
-      if ((rx / 0.52) ** 2 + (ry / (0.17 * sq)) ** 2 <= 1) return [0.5, 3];
-    }
-
-    for (const side of [-1, 1]) {
-      const ax = u - 1.30, ay = v + side * 0.26;
-      if (ax > 0 && ax < 0.42 && Math.abs(ay + side * ax * 0.75) < 0.05) return [0.8, 1];
-    }
-
-    const hd = ((u - 1.24) / 0.30) ** 2 + (v / 0.30) ** 2;
-    if (hd <= 1) return [1 - hd * 0.25, 1];
-
-    if (u < -1.12 && u > -1.42 && Math.abs(v) < (u + 1.42) * 0.30) return [0.9, 1];
-
-    const bd = (u / 1.14) ** 2 + (v / 0.52) ** 2;
-    if (bd <= 1) {
-      const e = 1 - bd * 0.22;
-      return Math.sin((u + 0.3) * 8.0) > 0 ? [e, 2] : [e * 0.34, 1];
-    }
-    return [0, 0];
-  }
 
   const key = (x, y) => y * 4000 + x;
   function streak() {
@@ -372,38 +344,69 @@ const field = (() => {
     }
   }
 
-  const INK = "rgba(14,14,12,", HONEY = "rgba(201,154,0,", WING = "rgba(31,78,121,";
-
-  let last = 0, t0 = performance.now();
+  let A = 0, B = 0, last = 0;
   function frame(now) {
     requestAnimationFrame(frame);
-    if (now - last < 66) return;            // 15fps
+    if (now - last < 50) return;          // 20fps
     last = now;
-    const t = (now - t0) / 1000;
+    A += 0.035; B += 0.017;
+
+    zbuf.fill(0); cbuf.fill(0); tbuf.fill(0);
+    const cosA = Math.cos(A), sinA = Math.sin(A);
+    const cosB = Math.cos(B), sinB = Math.sin(B);
+    const ox = cols / 2, oy = rows / 2;
+
+    for (let th = 0; th < 6.283; th += 0.04) {
+      const ct = Math.cos(th), st = Math.sin(th);
+      for (let ph = 0; ph < 6.283; ph += 0.012) {
+        const cp = Math.cos(ph), sp = Math.sin(ph);
+
+        // point on the tube, swung around the ring
+        const cx0 = R2 + R1 * ct, y0 = R1 * st;
+        const x = cx0 * (cosB * cp + sinA * sinB * sp) - y0 * cosA * sinB;
+        const y = cx0 * (sinB * cp - sinA * cosB * sp) + y0 * cosA * cosB;
+        const z = K2 + cosA * cx0 * sp + y0 * sinA;
+        const ooz = 1 / z;
+
+        const xp = Math.round(ox + K1 * ooz * x * 2);
+        const yp = Math.round(oy - K1 * ooz * y);
+        if (xp < 0 || yp < 0 || xp >= cols || yp >= rows) continue;
+
+        // light from over the viewer's shoulder, onto the surface normal
+        const L = ct * cp * cosB + cosA * ct * sp - sinA * st
+                + cosB * (cosA * st - ct * sinA * sp);
+        if (L <= 0) continue;
+
+        const i = xp + yp * cols;
+        if (ooz <= zbuf[i]) continue;
+        zbuf[i] = ooz;
+
+        // the comb, painted on the surface so it turns with it
+        const comb = Math.cos(th * 6) + Math.cos(ph * 9);
+        const lit = Math.max(0, Math.min(1, L * 0.70)) * (comb > 0.55 ? 0.42 : 1);
+        cbuf[i] = 1 + Math.min(RAMP.length - 1, Math.round(lit * (RAMP.length - 1)));
+        tbuf[i] = comb > 0.55 ? 1 : 0;
+      }
+    }
 
     ctx.clearRect(0, 0, innerWidth, innerHeight);
-
-    // a slow hover, so it never sits perfectly still
-    const bobX = Math.sin(t * 0.55) * R * 0.05;
-    const bobY = Math.cos(t * 0.42) * R * 0.04;
-
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const [d, part] = sample(x * CW - bobX, y * CH - bobY, t);
-        if (d <= 0.02) continue;
-        const ch = RAMP[Math.min(RAMP.length - 1, Math.round(d * (RAMP.length - 1)))];
-        if (ch === " ") continue;
-        const base = part === 3 ? WING : part === 2 ? HONEY : INK;
-        const a = part === 3 ? d * 0.16 : part === 2 ? d * 0.26 : d * 0.15;
-        ctx.fillStyle = base + a.toFixed(3) + ")";
-        ctx.fillText(ch, x * CW, y * CH);
+    for (let yy = 0; yy < rows; yy++) {
+      for (let xx = 0; xx < cols; xx++) {
+        const i = xx + yy * cols;
+        const c = cbuf[i];
+        if (!c) continue;
+        const g = (c - 1) / (RAMP.length - 1);
+        ctx.fillStyle = tbuf[i]
+          ? "rgba(201,154,0," + (0.05 + g * 0.16).toFixed(3) + ")"
+          : "rgba(14,14,12," + (0.03 + g * 0.13).toFixed(3) + ")";
+        ctx.fillText(RAMP[c - 1], xx * CW, yy * CH);
       }
     }
 
     for (const c of cells.values()) {
       c.life -= 0.018;
       if (c.life <= 0) { cells.delete(key(c.x, c.y)); continue; }
-      ctx.fillStyle = HONEY + Math.min(1, c.life * 0.5).toFixed(3) + ")";
+      ctx.fillStyle = "rgba(201,154,0," + Math.min(1, c.life * 0.5).toFixed(3) + ")";
       ctx.fillText(c.ch, c.x * CW, c.y * CH);
     }
   }
