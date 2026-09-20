@@ -92,7 +92,8 @@ The tool loads a page three times with different inputs and diffs the network tr
 Reply with ONLY json:
 {"how":"url"|"task","vary":"<query param>","task":"<instruction>","values":["a","b","c"],"why":"<one short clause>"}
 
-Prefer "url" whenever the thing being varied can live in the query string — it is faster and far more reliable. Use "task" only when the page genuinely requires interaction.
+Prefer "url" when the url ALREADY HAS a query parameter for the thing being varied — it is faster and far more reliable.
+Never invent a query parameter. If the url has no query string, answer "task".
 values must be three real, plausible inputs for that site.`;
 
 async function askModel(prompt: string, url: string): Promise<Plan | null> {
