@@ -11,11 +11,60 @@
 // which is the difference between finding a parameter and guessing one.
 
 import type { Field, Spec } from "../types.js";
+import { ask, fast } from "../llm.js";
 
 // the names everyone uses. ordered so the likely ones go first, since we stop
 // after we have found enough.
 const TEXT = ["filter", "search", "q", "query", "keyword", "term", "name"];
 const LIMIT = ["limit", "per_page", "page_size", "count"];
+
+const SUGGEST = `You are given a private API endpoint that a tool recovered by watching a website use it.
+
+Name additional query parameters the endpoint plausibly accepts. Think about what this
+particular API is for: a catalogue takes sorting and paging, a search takes a text query,
+a feed takes a date cursor.
+
+Reply with ONLY a JSON array of lowercase parameter names. No prose, no explanation.
+At most 12. Do not repeat parameters that are already known.`;
+
+// ask a model for candidates. it costs nothing to be wrong here - everything
+// it says is tested against the live endpoint below, and anything that
+// doesn't measurably change the answer is dropped. this is the cheap half of
+// the job, so it goes to the fast provider.
+async function suggest(spec: Spec, known: Set<string>, sample: unknown): Promise<string[]> {
+  const p = fast();
+  if (!p.key) return [];
+
+  const row = JSON.stringify(sample ?? {}).slice(0, 700);
+  const raw = await ask(
+    p,
+    SUGGEST,
+    [
+      `endpoint: ${spec.target.method} ${spec.target.urlTemplate}`,
+      `known query params: ${[...known].join(", ") || "none"}`,
+      `one row of the response: ${row}`,
+    ].join("\n"),
+    { maxTokens: 220, timeoutMs: 20_000 },
+  ).catch(() => null);
+  if (!raw) return [];
+
+  try {
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    if (start < 0 || end < start) return [];
+    const list = JSON.parse(raw.slice(start, end + 1));
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((x) => typeof x === "string")
+      .map((x) => x.trim().toLowerCase())
+      // a parameter name is a short identifier; anything else is the model
+      // answering a different question
+      .filter((x) => /^[a-z][a-z0-9_]{1,24}$/.test(x))
+      .filter((x) => !known.has(x));
+  } catch {
+    return [];
+  }
+}
 
 export interface Probed {
   field: Field;
@@ -117,10 +166,21 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
   const known = new Set(spec.fields.filter((f) => f.location === "query").map((f) => f.name));
   const found: Probed[] = [];
 
+  // the hardcoded names first, so behaviour without a model is unchanged and
+  // the common case is still found on the first try. anything the model adds
+  // is tried after, and only ever in addition.
+  const proposed = await suggest(spec, known, before[0]).catch(() => []);
+  if (proposed.length) log?.(`suggested: ${proposed.join(", ")}`);
+
+  const textNames = [...new Set([...TEXT, ...proposed])].slice(0, 16);
+  const limitNames = [...new Set([...LIMIT, ...proposed])].slice(0, 10);
+
   const word = needle(before);
   if (word) {
-    for (const name of TEXT) {
-      if (known.has(name) || found.length) break;
+    for (const name of textNames) {
+      if (found.length) break;
+      // a parameter the site already sends is not a discovery
+      if (known.has(name)) continue;
       const url = new URL(base);
       url.searchParams.set(name, word);
       const after = await get(url, headers);
@@ -142,7 +202,7 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
           samples: [word],
           boundTo: name,
           optional: true,
-          note: `free-text search — ${word} matched ${after.length} of ${before.length}`,
+          note: `free-text search — ${word} matched ${after.length} of ${before.length}` + (TEXT.includes(name) ? "" : " (model-suggested, then verified)"),
         },
         before: before.length,
         after: after.length,
@@ -150,7 +210,7 @@ export async function probe(spec: Spec, log?: (s: string) => void): Promise<Prob
     }
   }
 
-  for (const name of LIMIT) {
+  for (const name of limitNames) {
     if (known.has(name)) continue;
     const url = new URL(base);
     url.searchParams.set(name, "3");
