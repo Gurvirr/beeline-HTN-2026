@@ -8,6 +8,7 @@ import { extract, pickTarget } from "./fields.js";
 import { classify } from "./classify.js";
 import { resolve as resolveVolatile } from "./resolve.js";
 import { infer } from "./schema.js";
+import { planExtraction, extract as runExtraction } from "./extract.js";
 import { emit } from "../events.js";
 
 const flowName = process.argv[2];
@@ -30,17 +31,21 @@ const traces: Trace[] = await Promise.all(
 
 // align the target request across runs
 const targets: Exchange[] = [];
+let noApi = false;
 for (const trace of traces) {
   const target = pickTarget(trace.exchanges, trace.input, trace.targetHint, trace.origin);
   if (!target) {
-    console.error(
-      `no candidate request found in ${trace.runId}.\n` +
-        `  The flow may not have fired an XHR. Run capture with --headed to watch it,\n` +
-        `  or set flow.pick() to name the request explicitly.`,
-    );
-    process.exit(1);
+    noApi = true;
+    break;
   }
   targets.push(target);
+}
+
+// nothing on the wire. the page renders its data on the server, so the html is
+// the response — fall back to pulling the data out of it
+if (noApi) {
+  await htmlFallback(traces, flowName);
+  process.exit(0);
 }
 
 // if runs disagree about which endpoint mattered, the flow isn't deterministic
@@ -197,4 +202,62 @@ function median(xs: number[]): number {
   const sorted = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
+}
+
+// --- nothing on the wire ---
+//
+// the page renders its data on the server, so there's no endpoint to recover.
+// the html *is* the response — work out how to pull the data out of it.
+async function htmlFallback(traces: Trace[], name: string) {
+  const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+  const amber = (s: string) => `\x1b[33m${s}\x1b[0m`;
+
+  // the biggest html response is the page itself
+  const page = traces[0]!.exchanges
+    .filter((x) => typeof x.responseBody === "string" && /<html/i.test(x.responseBody))
+    .sort((a, b) => String(b.responseBody).length - String(a.responseBody).length)[0];
+
+  if (!page) {
+    console.error("\n  no endpoint, and no html to fall back on either.\n");
+    process.exit(1);
+  }
+
+  console.log(`\n  ${amber("no endpoint on the wire")} — this page renders on the server`);
+  console.log(`  ${dim("reading it to work out how to pull the data out")}`);
+
+  const goal = Object.entries(traces[0]!.input)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(" ");
+  const plan = await planExtraction(String(page.responseBody), goal || name);
+
+  if (!plan) {
+    console.error(`\n  couldn't find a repeating structure to extract.\n`);
+    process.exit(1);
+  }
+
+  const rows = runExtraction(String(page.responseBody), plan);
+  console.log(`  ${plan.item} matched ${plan.found} — ${dim(plan.why)}`);
+  console.log(`  fields: ${Object.keys(plan.fields).join(", ")}\n`);
+
+  const spec: Spec = {
+    flow: name,
+    origin: traces[0]!.origin,
+    mode: "html",
+    extraction: plan,
+    target: { method: "GET", urlTemplate: page.url },
+    fields: [],
+    bootstrap: [],
+    responseSchema: infer([rows]),
+    unresolved: [],
+    meta: {
+      runs: traces.length,
+      generatedAt: new Date().toISOString(),
+      browserMs: median(traces.map((t) => t.exchanges.at(-1)?.t ?? 0)),
+    },
+  };
+
+  await mkdir("out", { recursive: true });
+  await writeFile(join("out", `${name}.spec.json`), JSON.stringify(spec, null, 2));
+  emit({ type: "spec", flow: name });
+  console.log(`  wrote out/${name}.spec.json\n`);
 }

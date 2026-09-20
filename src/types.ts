@@ -121,6 +121,11 @@ export interface BootstrapStep {
 export interface Spec {
   flow: string;
   origin: string;
+  // api  the page called an endpoint and we recovered it. fast, sturdy.
+  // html  there was no endpoint, so we pull the data out of the page itself.
+  //       more brittle, and the client has to parse — but better than nothing.
+  mode?: "api" | "html";
+  extraction?: import("./analyze/extract.js").Extraction;
   target: {
     method: string;
     // absolute URL with :param placeholders where inputs appeared in the path

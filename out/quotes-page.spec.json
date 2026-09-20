@@ -1,0 +1,49 @@
+{
+  "flow": "quotes-page",
+  "origin": "https://quotes.toscrape.com",
+  "mode": "html",
+  "extraction": {
+    "item": "div.quote",
+    "fields": {
+      "quote_text": "span.text",
+      "author": "small.author",
+      "tags": "div.tags .tag"
+    },
+    "found": 10,
+    "why": "each quote card repeats with text, author, and tags"
+  },
+  "target": {
+    "method": "GET",
+    "urlTemplate": "https://quotes.toscrape.com/page/1/"
+  },
+  "fields": [],
+  "bootstrap": [],
+  "responseSchema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "quote_text": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "quote_text",
+        "author",
+        "tags"
+      ]
+    }
+  },
+  "unresolved": [],
+  "meta": {
+    "runs": 2,
+    "generatedAt": "2026-09-20T02:14:59.455Z",
+    "browserMs": 852
+  }
+}
