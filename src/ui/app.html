@@ -66,7 +66,8 @@
      headline and the box together as one block */
   body:not(.running) .lane{justify-content:flex-start}
   body:not(.running) .thread{flex:0 1 auto;overflow:visible}
-  body:not(.running) .inner{padding-top:7vh;padding-bottom:0}
+  body:not(.running) .inner{padding-top:9vh;padding-bottom:0}
+  body:not(.running) .composer{margin-top:auto;padding-bottom:7vh}
   .inner{max-width:730px;margin:0 auto;padding:26px 22px 8px}
 
   /* ---- the empty state: the call to action is the page ---- */
@@ -80,13 +81,14 @@
 
   /* the diagram is a footnote to the headline, not a second headline */
   .scroller{overflow-x:auto;max-width:100%;margin:0 0 28px;padding-bottom:2px}
-  pre.diagram{font-size:11px;line-height:1.12;color:var(--muted);margin:0;padding:0;
+  pre.diagram{font-size:12px;line-height:1.35;color:var(--muted);margin:0;padding:0;
     background:none;border:0;border-radius:0;max-height:none;overflow:visible;
     white-space:pre;display:inline-block;text-align:left;opacity:.85}
   pre.diagram b{color:var(--ink);font-weight:400}
   pre.diagram i{color:var(--ink-2);font-style:normal}
 
-  .chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  /* parked: the prompt is the way in for now */
+  .chips{display:none}
   .chip{font-family:var(--mono);font-weight:500;font-size:13px;background:var(--paper);
     border:1px solid var(--line-2);border-radius:3px;padding:7px 14px;cursor:pointer;
     color:var(--ink-2);transition:.1s}
@@ -256,11 +258,10 @@
         <section class="hero" id="hero">
           <h1>Every website already has an <mark>API</mark>.</h1>
           <p>Name a site. Beeline uses it once, then writes you a typed client.</p>
-<div class="scroller"><pre class="diagram">  <i>use it three times</i>        <i>line them up</i>          <i>compile</i>
-  <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b> <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b> <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b>      what moved with you
-  <b>&#9474;</b> 1 <b>&#9474;</b> <b>&#9474;</b> 2 <b>&#9474;</b> <b>&#9474;</b> 3 <b>&#9474;</b>  &#9472;&#9656;  what never changed  &#9472;&#9656;  <i>client.ts</i>
-  <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b> <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b> <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b>      what moved on its own
-    <b>&#9492;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9508;</b></pre></div>
+<div class="scroller"><pre class="diagram"><i>    use it three times             line them up             compile</i>
+<b>   +---+   +---+   +---+        what moved with you</b>
+<b>   | 1 |   | 2 |   | 3 |   -->  what never changed     -->  client.ts</b>
+<b>   +---+   +---+   +---+        what moved on its own</b></pre></div>
           <div class="chips" id="chips"></div>
         </section>
         <div id="turns"></div>
