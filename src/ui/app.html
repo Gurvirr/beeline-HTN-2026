@@ -367,7 +367,7 @@ const field = (() => {
         if (d <= BAYER[(y & 3) * 4 + (x & 3)] * 0.55) continue;
         const ch = CLOUD[Math.min(CLOUD.length - 1, Math.round(d * (CLOUD.length - 1)))];
         if (ch === " ") continue;
-        ctx.fillStyle = "rgba(14,14,12," + (0.10 + d * 0.26).toFixed(3) + ")";
+        ctx.fillStyle = "rgba(14,14,12," + (0.12 + d * 0.31).toFixed(3) + ")";
         ctx.fillText(ch, x * CW, y * CH);
       }
     }
@@ -485,7 +485,7 @@ const field = (() => {
         if (!c) continue;
         const g = (c - 1) / (RAMP.length - 1);
         ctx.fillStyle = fbuf[j]
-          ? "rgba(201,154,0,.74)"
+          ? "rgba(234,176,4,.92)"
           : "rgba(14,14,12," + (0.13 + g * 0.33).toFixed(3) + ")";
         ctx.fillText(RAMP[c - 1], xx * CW, yy * CH);
       }
