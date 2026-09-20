@@ -1,54 +1,166 @@
 {
   "flow": "zed",
   "origin": "https://zed.dev",
-  "mode": "html",
-  "extraction": {
-    "item": "a.group.cursor-pointer.rounded-sm",
-    "fields": {
-      "name": "p@0",
-      "metric": "p@1",
-      "description": "p@2",
-      "author": "p@3"
-    },
-    "found": 40,
-    "why": "repository-style result cards"
-  },
   "target": {
     "method": "GET",
-    "urlTemplate": "https://zed.dev/extensions"
+    "urlTemplate": "https://cloud.zed.dev/extensions"
   },
-  "fields": [],
+  "fields": [
+    {
+      "location": "header",
+      "name": "accept",
+      "kind": "static",
+      "samples": [
+        "*/*",
+        "*/*",
+        "*/*"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "accept-language",
+      "kind": "static",
+      "samples": [
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "content-type",
+      "kind": "static",
+      "samples": [
+        "application/json",
+        "application/json",
+        "application/json"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "origin",
+      "kind": "static",
+      "samples": [
+        "https://zed.dev",
+        "https://zed.dev",
+        "https://zed.dev"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "referer",
+      "kind": "static",
+      "samples": [
+        "https://zed.dev/",
+        "https://zed.dev/",
+        "https://zed.dev/"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "user-agent",
+      "kind": "static",
+      "samples": [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "max_schema_version",
+      "kind": "static",
+      "samples": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "provides",
+      "kind": "param",
+      "samples": [
+        "python",
+        "theme",
+        "rust"
+      ],
+      "boundTo": "filter"
+    }
+  ],
   "bootstrap": [],
   "responseSchema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "metric": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "author": {
-          "type": "string"
+    "type": "object",
+    "properties": {
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "authors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "repository": {
+              "type": "string"
+            },
+            "schema_version": {
+              "type": "number"
+            },
+            "wasm_api_version": {
+              "type": "string"
+            },
+            "provides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "published_at": {
+              "type": "string"
+            },
+            "download_count": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "version",
+            "description",
+            "authors",
+            "repository",
+            "schema_version",
+            "wasm_api_version",
+            "provides",
+            "published_at",
+            "download_count"
+          ]
         }
-      },
-      "required": [
-        "name",
-        "metric",
-        "description",
-        "author"
-      ]
-    }
+      }
+    },
+    "required": [
+      "data"
+    ]
   },
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-20T03:07:43.549Z",
-    "browserMs": 2426
+    "generatedAt": "2026-09-20T03:25:18.264Z",
+    "browserMs": 1361
   }
 }

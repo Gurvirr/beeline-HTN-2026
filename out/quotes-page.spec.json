@@ -7,13 +7,13 @@
     "fields": {
       "quote": "span@0",
       "author": "small@0",
-      "tag1": "a@1",
-      "tag2": "a@2",
-      "tag3": "a@3",
-      "tag4": "a@4"
+      "tag_1": "a@1",
+      "tag_2": "a@2",
+      "tag_3": "a@3",
+      "tag_4": "a@4"
     },
     "found": 10,
-    "why": "quote entries with author and tags"
+    "why": "quote cards with author and tags"
   },
   "target": {
     "method": "GET",
@@ -32,33 +32,33 @@
         "author": {
           "type": "string"
         },
-        "tag1": {
+        "tag_1": {
           "type": "string"
         },
-        "tag2": {
+        "tag_2": {
           "type": "string"
         },
-        "tag3": {
+        "tag_3": {
           "type": "string"
         },
-        "tag4": {
+        "tag_4": {
           "type": "string"
         }
       },
       "required": [
         "quote",
         "author",
-        "tag1",
-        "tag2",
-        "tag3",
-        "tag4"
+        "tag_1",
+        "tag_2",
+        "tag_3",
+        "tag_4"
       ]
     }
   },
   "unresolved": [],
   "meta": {
     "runs": 2,
-    "generatedAt": "2026-09-20T02:39:04.543Z",
+    "generatedAt": "2026-09-20T03:29:53.254Z",
     "browserMs": 852
   }
 }

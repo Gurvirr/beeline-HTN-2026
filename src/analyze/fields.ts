@@ -110,7 +110,7 @@ export function pickTarget(
   // requests at ad networks, consent vendors and analytics — none of which
   // are ever the thing the user asked for
   if (origin) {
-    const own = exchanges.filter((x) => x.url.startsWith(origin));
+    const own = exchanges.filter((x) => sameSite(x.url, origin));
     if (own.length) exchanges = own;
   }
 
@@ -147,7 +147,12 @@ export function pickTarget(
   const answered = dataFetches.filter((x) =>
     inputValues.some((v) => bodyOf(x).includes(v)),
   );
-  if (answered.length) return largestBody(answered);
+  if (answered.length) {
+    // a page's own render payload can mention the input too. json that parsed
+    // into an object is an api answering; a big string is a page describing.
+    const structured = answered.filter((x) => typeof x.responseBody === "object");
+    return largestBody(structured.length ? structured : answered);
+  }
 
   // the input went out in a state-changing request: this request *was* the
   // action. covers form submissions, which are documents rather than XHR.
@@ -196,4 +201,16 @@ const TRACKING = [
 
 function isTracking(name: string): boolean {
   return TRACKING.some((re) => re.test(name));
+}
+
+// api.example.com and example.com are the same site wearing two hats. an exact
+// origin match throws away the endpoint on the sibling subdomain, which is
+// usually exactly the one we came for.
+function sameSite(url: string, origin: string): boolean {
+  try {
+    const registrable = (h: string) => h.split(".").slice(-2).join(".");
+    return registrable(new URL(url).hostname) === registrable(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
 }

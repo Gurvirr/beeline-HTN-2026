@@ -252,6 +252,11 @@ function readResponse(spec: Spec): string {
 // there being no api to find.
 async function writeHtmlClient(spec: Spec, name: string) {
   const e = spec.extraction!;
+  const args = [
+    ...new Set(
+      spec.fields.filter((f) => f.kind === "param" && f.boundTo).map((f) => f.boundTo!),
+    ),
+  ];
   const rowType = Object.keys(e.fields)
     .map((k) => `  ${k}: string;`)
     .join("\n");
@@ -276,9 +281,22 @@ async function writeHtmlClient(spec: Spec, name: string) {
     rowType,
     `}`,
     ``,
+    ...(args.length
+      ? [`export interface ${name}Params {`, ...args.map((a) => `  ${a}?: string;`), `}`, ``]
+      : []),
     `export class ${name}Client {`,
-    `  async call(): Promise<${name}Row[]> {`,
-    `    const res = await fetch(${JSON.stringify(spec.target.urlTemplate)});`,
+    args.length
+      ? `  async call(params: ${name}Params = {}): Promise<${name}Row[]> {`
+      : `  async call(): Promise<${name}Row[]> {`,
+    `    const url = new URL(${JSON.stringify(spec.target.urlTemplate)});`,
+    // the page narrows itself before rendering, so the argument goes on the url
+    ...spec.fields
+      .filter((f) => f.location === "query" && f.kind === "param")
+      .map(
+        (f) =>
+          `    if (params.${f.boundTo}) url.searchParams.set(${JSON.stringify(f.name)}, params.${f.boundTo});`,
+      ),
+    `    const res = await fetch(url);`,
     "    if (!res.ok) throw new Error(`" + spec.flow + ": ${res.status} ${res.statusText}`);",
     ``,
     `    const root = parse(await res.text());`,

@@ -220,10 +220,25 @@ async function htmlFallback(traces: Trace[], name: string) {
   const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
   const amber = (s: string) => `\x1b[33m${s}\x1b[0m`;
 
-  // the biggest html response is the page itself
-  const page = traces[0]!.exchanges
-    .filter((x) => typeof x.responseBody === "string" && /<html/i.test(x.responseBody))
-    .sort((a, b) => String(b.responseBody).length - String(a.responseBody).length)[0];
+  // which html response is "the page"? a run often loads the entry url first
+  // and then navigates again with the argument on it, and the filtered page is
+  // the SMALLER of the two — so size is the wrong test. prefer the one whose
+  // url carries an input value, then the one we landed on last.
+  const pageOf = (t: Trace) => {
+    const html = t.exchanges.filter(
+      (x) => typeof x.responseBody === "string" && /<html/i.test(x.responseBody),
+    );
+    const values = Object.values(t.input).filter(Boolean);
+    const carries = html.filter((x) =>
+      values.some((v) => x.url.includes(v) || x.url.includes(encodeURIComponent(v))),
+    );
+    if (carries.length) return carries.sort((a, b) => (b.t ?? 0) - (a.t ?? 0))[0];
+    return html.sort(
+      (a, b) => String(b.responseBody).length - String(a.responseBody).length,
+    )[0];
+  };
+
+  const page = pageOf(traces[0]!);
 
   if (!page) {
     console.error("\n  no endpoint, and no html to fall back on either.\n");
@@ -239,8 +254,9 @@ async function htmlFallback(traces: Trace[], name: string) {
   const plan = await planExtraction(String(page.responseBody), goal || name);
 
   if (!plan) {
-    console.error(`\n  couldn't find a repeating structure to extract.\n`);
-    process.exit(1);
+    console.error(`  couldn't find a repeating structure to extract.`);
+    process.exitCode = 1;
+    return;
   }
 
   const rows = runExtraction(String(page.responseBody), plan);
@@ -252,8 +268,8 @@ async function htmlFallback(traces: Trace[], name: string) {
     origin: traces[0]!.origin,
     mode: "html",
     extraction: plan,
-    target: { method: "GET", urlTemplate: page.url },
-    fields: [],
+    target: { method: "GET", urlTemplate: stripQuery(page.url) },
+    fields: pageParams(traces, pageOf),
     bootstrap: [],
     responseSchema: infer([rows]),
     unresolved: [],
@@ -264,8 +280,52 @@ async function htmlFallback(traces: Trace[], name: string) {
     },
   };
 
+  const bound = spec.fields.filter((f) => f.kind === "param");
+  if (bound.length) {
+    console.log(
+      `  ${dim("the page takes")} ${bound.map((f) => f.name).join(", ")} ${dim("— passing them through")}`,
+    );
+  }
+
   await mkdir("out", { recursive: true });
   await writeFile(join("out", `${name}.spec.json`), JSON.stringify(spec, null, 2));
   emit({ type: "spec", flow: name });
   console.log(`  wrote out/${name}.spec.json\n`);
+}
+
+// a server-rendered page can still take arguments — zed.dev/extensions?filter=
+// narrows the list before it renders it. so if a query param on the page url
+// moved with one of our inputs, it's an argument of the api, not decoration.
+function pageParams(traces: Trace[], pageOf: (t: Trace) => Exchange | undefined): Field[] {
+  const urls = traces.map((t) => {
+    const pg = pageOf(t);
+    return pg ? new URL(pg.url) : null;
+  });
+  if (urls.some((u) => !u)) return [];
+
+  const keys = new Set<string>();
+  for (const u of urls) for (const k of u!.searchParams.keys()) keys.add(k);
+
+  const fields: Field[] = [];
+  for (const key of keys) {
+    const values = urls.map((u) => u!.searchParams.get(key) ?? "");
+    // same in every run: part of the address, not an argument
+    if (values.every((v) => v === values[0])) continue;
+
+    for (const input of Object.keys(traces[0]!.input)) {
+      const expected = traces.map((t) => t.input[input] ?? "");
+      if (expected.every((e) => e === expected[0])) continue;
+      if (values.every((v, i) => v === expected[i])) {
+        fields.push({
+          location: "query",
+          name: key,
+          kind: "param",
+          samples: values,
+          boundTo: input,
+        });
+        break;
+      }
+    }
+  }
+  return fields;
 }

@@ -23,7 +23,15 @@ export async function execute(
   // no endpoint was ever found for this one — the data is in the page. fetch it
   // and run the same extraction the generated client would.
   if (spec.mode === "html" && spec.extraction) {
-    const res = await fetch(spec.target.urlTemplate);
+    const pageUrl = new URL(spec.target.urlTemplate);
+    // the page may narrow itself before rendering — ?filter=, ?q=, ?page=
+    for (const f of spec.fields) {
+      if (f.location === "query" && f.kind === "param") {
+        const v = params[f.boundTo ?? ""] ?? "";
+        if (v) pageUrl.searchParams.set(f.name, v);
+      }
+    }
+    const res = await fetch(pageUrl);
     const rows = extract(await res.text(), spec.extraction);
     return { status: res.status, body: rows, ms: Date.now() - started };
   }
