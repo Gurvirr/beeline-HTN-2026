@@ -1,173 +1,240 @@
 # beeline
 
-**Every website already has an API. Beeline finds it.**
+**Every website already has an API — it's just undocumented.**
 
-Use a site once. Beeline watches what the page says to its own server, works out
-the call underneath, and writes you a typed client that makes that call
-directly — no browser, no scraping, no selectors.
+The site you want data from is already calling one: clean JSON, a couple of
+parameters, a session token. Nobody hands you the client.
 
+Beeline uses the site once, works out that call from its own traffic, and writes
+you a typed client. No browser, no scraping, no selectors to maintain.
+
+```ts
+import { ZedClient } from "./out/zed.client.js";
+
+const zed = new ZedClient();
+await zed.call({ provides: "themes", filter: "ultraviolet" });
+// [{ id: "ultraviolet-theme", name: "ultraViolet", version: "0.2.0", … }]
 ```
-$ beeline learn films --cloud
 
-  ran the task with year=2010 · 36 requests
-  ran it again with year=2012 · 36 requests
-  ran it again with year=2015 · 36 requests
-  year followed your input — that's the parameter
-  wrote 52 lines of typed client
+63 lines, no dependencies. **63ms over HTTP against 3,104ms through a browser.**
 
-  PASS  200 · schema matches
-  90ms over HTTP · 2099ms via the browser · 23.3x faster
-```
+---
 
 ## How it works
 
-Almost every modern page fetches its data from an undocumented endpoint. That
-endpoint is an API nobody published. Beeline recovers it by **differential
-capture**:
+It uses the flow **three times with different inputs** and diffs the traffic.
 
-1. **Capture** — do the task three times with different inputs, recording every
-   request the page makes.
-2. **Analyze** — line the runs up and compare every field:
-   - identical every run → **static**, freeze it
-   - follows your input → **parameter**, make it an argument
-   - changes on its own → **token**, so trace it back through the trace to the
-     response that issued it
-3. **Synthesize** — emit a standalone typed client, including the handshake
-   needed to get those tokens.
-4. **Verify** — call it with an input it has never seen and check the response
-   still matches what was learned.
+| what it saw | what it means | what it does |
+|---|---|---|
+| tracks your input | a parameter | becomes an argument |
+| identical every run | static | frozen into the client |
+| changes on its own | a session token | traced back to whatever issued it |
 
-Three runs is the minimum that works. With two, a session token that happened to
-change is indistinguishable from a parameter that happened to change.
+Three runs is the minimum that works. With two, a rotating session cookie and a
+search query you happened to change look exactly the same.
+
+```
+   "get all extensions from zed.dev/extensions"
+                    |
+   1  USE IT 3x     |  provides = themes | languages | icon-themes
+                    |  315 / 292 / 353 requests recorded
+                    v
+   2  DIFF THE RUNS |  moved with you  -> provides            PARAMETER
+                    |  never changed   -> max_schema_version  STATIC
+                    |  moved by itself -> csrf_token, session VOLATILE
+                    v
+   3  PROBE         |  11 names proposed, 10 changed nothing
+                    |  filter: 638 rows -> 1                  KEPT
+                    v
+   4  COMPILE       |  63 lines of TypeScript, zero dependencies
+                    v
+   5  VERIFY        |  63ms over HTTP  vs  3,104ms via browser
+                    v
+   6  REMEMBER      |  Cloudflare Worker, re-checked every 15 min
+```
+
+## Tracing a session token
+
+The hard part isn't finding the endpoint — it's reproducing the values the site
+gave itself. A captured CSRF token is worthless; you need to know **where it came
+from**, so the client can fetch a fresh one.
+
+Beeline searches every earlier response for each volatile value, and records how
+to get it again:
+
+```
+csrf_token   ← a hidden input in the HTML of GET /login
+session      ← set-cookie on that same response
+sessionid    ← a JavaScript variable in the page body   (steam)
+browserid    ← set-cookie from GET /search/             (steam)
+```
+
+Then it writes the handshake into the client:
+
+```ts
+// one-time handshake. call before `call`; safe to call again to refresh
+async connect(): Promise<void> {
+  const res = await fetch("https://quotes.toscrape.com/login", { method: "GET" });
+  this.session["csrf_token"] =
+    /input type="hidden" name="csrf_token" value="([^"'<\s]+)/
+      .exec(await res.clone().text())?.[1] ?? "";
+  this.cookies["session"] =
+    /session=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")?.[1] ?? "";
+}
+```
+
+`call()` runs that automatically the first time. Values it genuinely can't
+reproduce — a signature computed in JavaScript, say — are sent as captured and
+flagged as unresolved, so you know the client has an expiry date rather than
+finding out in production.
+
+## Probing
+
+Capture can only learn arguments the site actually sends, and plenty of endpoints
+accept more than their own UI ever uses.
+
+So once the endpoint is recovered, a model proposes candidate parameter names and
+**each one is tested against the live API**:
+
+```
+~ zai-org/GLM-5.3-Flash   guessed 11 parameters
+                          query search sort order page per_page limit
+                          offset cursor filter author
+~ checked                 filter is real — narrowed 638 rows to 1
+```
+
+A candidate survives only if it narrows the result, returns at least one row, and
+returns only rows that were in the original set. The other ten came back
+identical and were dropped.
+
+`filter` appears in no documentation, and zed's own search box filters
+client-side so the site never sends it. The model is allowed to be wrong, cheaply
+and often, because nothing it says reaches the output unverified.
+
+## When there is no API
+
+Some pages really do render on the server. Beeline says so and falls back to
+reading the page — a model is shown a structural summary of the repeating
+elements and picks selectors, which are then validated by running them. Fields
+that extract nothing are dropped rather than shipped.
+
+Those clients need a parser, and the generated file says so. More brittle than a
+recovered endpoint, and beeline doesn't pretend otherwise.
 
 ## Quick start
 
 ```bash
 npm install
-npm link                      # puts `beeline` on your path
-echo "BROWSERBASE_API_KEY=..." > .env
-
-beeline learn films --cloud   # capture, analyze, synthesize, verify
-beeline ui                    # the dashboard, on localhost:4000
+cp .env.example .env     # add your keys
+npm run ui               # dashboard on localhost:4000
 ```
 
-Then use what it wrote:
-
-```ts
-import { FilmsClient } from "./out/films.client.js";
-
-const films = new FilmsClient();
-const results = await films.call({ year: "2015" });
-// [{ title: "Spotlight", year: 2015, awards: 2, nominations: 6 }, ...]
+```bash
+npm link                     # gives you `beeline`
+beeline learn films          # capture → analyze → synth → verify
+beeline learn films --cloud  # run the browsers on browserbase
 ```
+
+Only `LLM_API_KEY` is required:
+
+```
+LLM_API_KEY=...          # planning, and reading pages that have no api
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.4-mini
+BASETEN_API_KEY=...      # optional: proposes parameters to probe
+BROWSERBASE_API_KEY=...  # optional: cloud browsers and a live view
+BEELINE_BRAIN=...        # optional: where learned specs are registered
+```
+
+Without Baseten, probing falls back to the primary model. Without Browserbase,
+capture runs a local Chrome.
 
 ## Commands
 
 ```
-beeline learn <flow>       capture, analyze, synthesize, verify
-beeline ui                 the dashboard
-beeline diff <flow>        what changed across runs, and what we concluded
-beeline verify <flow>      run the client again and time it
-beeline deploy <flow>      put the client behind a Cloudflare Worker
+beeline learn <flow>      the whole pipeline
+beeline capture <flow>    record the runs only
+beeline analyze <flow>    diff the recordings into a spec
+beeline diff <flow>       show what changed across runs
+beeline synth <flow>      spec → client.ts
+beeline verify <flow>     run the client and time it
+beeline remember <flow>   hand the spec to the brain
+beeline health            what the brain knows, and what has drifted
+beeline ui                the dashboard
 
-beeline remember <flow>    teach the brain an api
-beeline health             what it knows, and what has drifted
-beeline check <flow>       go look right now
+  --cloud        browserbase instead of local chrome
+  --headed       watch it locally
+  --from-cache   reuse the last capture
 ```
-
-Flags: `--cloud` (Browserbase instead of local Chrome), `--headed`,
-`--from-cache` (skip capture, reuse the last recordings).
 
 ## The brain
 
-Learning an API is only half of it — sites change without telling anyone. The
-brain is a Cloudflare Worker that remembers every API beeline has learned, and
-keeps calling them to check the sites still behave:
-
-- **D1** stores each spec and its check history
-- **Cron** re-checks everything every 15 minutes, unprompted
-- **Drift detection** reports exactly what changed: `$[0].director: missing`
-- **Self-healing** — if the request still works and only the response shape
-  moved, it relearns the schema itself and carries on
-
-It also serves every learned API, so they're callable from anything:
+A Cloudflare Worker with D1 and a cron trigger. A finished pipeline registers its
+spec automatically, so a learned API is callable straight away:
 
 ```bash
-curl "https://beeline-brain.gurvirrandhawa28.workers.dev/call/films?year=2015"
+curl "https://your-worker.workers.dev/call/zed?provides=themes&filter=ultraviolet"
 ```
 
-It executes specs generically, so it can run any API beeline has ever learned
-without that client being compiled into it.
+Every 15 minutes it re-calls everything it knows, compares the response against
+the schema it learned, and re-infers the shape when a site moves underneath it.
+
+Registration verifies itself: the Worker bundles its own copy of the executor, so
+a spec newer than the deployment would register happily and then answer with
+nonsense. Instead it calls the endpoint once and checks — if the deployed brain
+can't serve it, the entry is withdrawn rather than left advertising a broken URL.
 
 ## Writing a flow
 
-A flow says where to go and what to do. Either script it:
+A flow is the recipe: where to start, what to vary, what to do on the page.
 
 ```ts
+import type { Flow } from "../src/types.js";
+
 const flow: Flow = {
   name: "films",
   entry: "https://www.scrapethissite.com/pages/ajax-javascript/",
-  inputs: [{ year: "2010" }, { year: "2012" }, { year: "2015" }],
+  inputs: [{ year: "2013" }, { year: "2014" }, { year: "2015" }],
   async run(page, input) {
-    await page.getByRole("link", { name: input.year, exact: true }).click();
+    await page.click(`#${input.year}`);
     await page.waitForSelector("#table-body tr");
   },
 };
+export default flow;
 ```
 
-…or describe it, and let Stagehand work out the clicking:
-
-```ts
-  task: "type {q} into the search box and press Enter",
-```
+Three inputs, deliberately. You can also skip the file and type a sentence into
+the dashboard — it works out an entry URL and what to vary.
 
 ## What it can't do
 
-- **Server-rendered pages.** If the data arrives baked into the HTML there is no
-  network call to find. RateMyProfessors is like this — we tried.
-- **Requests signed by obfuscated client-side JS.** The information isn't in the
-  traffic, so it can't be recovered from the traffic.
-- **Sites that fingerprint TLS.** A plain HTTP client doesn't look like Chrome.
-- Datacenter IPs get rate-limited by some sites (Steam does this), so the brain
-  can be throttled where a local client isn't.
-
-Beeline says which of these it hit rather than guessing.
+- **Client-signed requests.** If a site computes a signature in JavaScript,
+  beeline can't reproduce it. The captured value is sent instead, which works
+  until it expires, and the verifier says so loudly when it stops.
+- **TLS fingerprinting.** Sites that check how the connection is negotiated,
+  rather than what's in it, will reject a plain `fetch`.
+- **Natural-language flows are the weak path.** Driving a page by instruction
+  instead of by URL takes ~40s a run and can report success without having done
+  the task. Prefer a site that takes its arguments in the query string.
 
 ## Layout
 
 ```
-src/capture    drive the flow, record everything off the wire
-src/analyze    diff the runs, classify fields, trace tokens to their source
-src/synth      spec -> standalone typed client
-src/verify     call it for real and compare
-src/runtime    run a spec directly, without generating code (used by the brain)
-src/ui         the dashboard
-workers/brain  memory, health checks, self-healing, on Cloudflare
-flows          one file per site
+src/capture/    drive the browser, record every exchange
+src/analyze/    diff the runs, classify fields, trace volatiles, probe
+src/synth/      spec → typed client
+src/verify/     call it, time it against the browser
+src/runtime/    execute a spec directly, without generating code
+src/brain/      register and query the worker
+src/ui/         dashboard, SSE, live browser
+workers/brain/  the cloudflare worker
+flows/          one file per site
+out/            generated specs and clients
 ```
-
-Built at Hack the North 2026.
 
 ## Running it somewhere else
 
-The dashboard is a plain Node server, so anything that runs `npm ci && npm start`
-will host it. It reads `PORT` from the environment.
-
-```
-LLM_API_KEY=...            # the planner and the page reader
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-5.4-mini
-BASETEN_API_KEY=...        # optional: proposes extra parameters to probe
-BROWSERBASE_API_KEY=...    # required if you want live capture
-PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-```
-
-Two things to know before you point anyone at it.
-
-**Leave "run in the cloud" ticked.** Cloud capture connects to Browserbase over
-CDP and needs no local browser. Untick it and it calls `chromium.launch()`,
-which is not there on a host that skipped the browser download.
-
-**Anything learned on a deployed instance is temporary.** `out/` and `traces/`
-are written to disk, so they reset whenever the host redeploys. The specs
-committed to the repo are what the library shows on a fresh boot.
+The dashboard is a plain Node server — anything that runs `npm ci && npm start`
+will host it, and it reads `PORT` from the environment. Leave cloud capture on,
+since local capture needs a Chrome the host has probably skipped installing, and
+note that anything learned there resets on redeploy.

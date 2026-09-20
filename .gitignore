@@ -12,3 +12,6 @@ prizes.html
 .wrangler/
 
 traces/
+
+# devpost / demo captures, not part of the project
+media/
