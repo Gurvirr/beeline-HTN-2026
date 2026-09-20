@@ -26,6 +26,8 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/new") return await makeFlow(req, res);
     if (url.pathname === "/api/try") return await tryIt(res, url);
     if (url.pathname === "/api/library") return await serveLibrary(res);
+    if (url.pathname === "/favicon.svg") return await serveFile(res, "favicon.svg", "image/svg+xml");
+    if (url.pathname === "/_fav") return await serveFile(res, "_fav.html", "text/html; charset=utf-8");
     if (url.pathname === "/api/the-old-way") return await theOldWay(res, url);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
@@ -91,6 +93,20 @@ async function serveText(
 // everything beeline has ever learned, as a catalogue. the brain holds the
 // same thing behind /apis once a spec is registered; this reads the specs on
 // disk so the shelf is populated whether or not anything has been deployed.
+async function serveFile(
+  res: import("node:http").ServerResponse,
+  name: string,
+  type: string,
+) {
+  try {
+    const body = await readFile(join(here, name));
+    res.writeHead(200, { "content-type": type, "cache-control": "no-store" });
+    res.end(body);
+  } catch {
+    res.writeHead(404).end("not found");
+  }
+}
+
 async function serveLibrary(res: import("node:http").ServerResponse) {
   let files: string[] = [];
   try {
