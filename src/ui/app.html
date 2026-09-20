@@ -91,10 +91,19 @@
   /* parked: the prompt is the way in for now */
   .chips{display:none}
 
-  /* ---- the shelf: every api it has learned, callable without relearning ---- */
-  .shelf{margin-top:34px;text-align:left}
-  .shelf-top{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;
-    padding-bottom:8px;border-bottom:1px solid var(--line)}
+  /* ---- the way in ---- */
+  .nav{position:fixed;top:16px;right:20px;z-index:3;font-family:var(--mono);font-size:12.5px;
+    font-weight:500;color:var(--muted);text-decoration:none;padding:5px 11px;border-radius:3px;
+    border:1px solid transparent;transition:.12s;background:var(--paper)}
+  .nav:hover{color:var(--ink);border-color:var(--line-2)}
+  .nav b{font-weight:500;color:var(--yellow-deep)}
+
+  /* ---- the shelf, on its own page so it stops sitting on the mark ---- */
+  .shelf{text-align:left;padding-top:4vh}
+  body:not(.library) #shelf{display:none}
+  body.library #hero{display:none}
+  .shelf-top{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;
+    padding-bottom:9px;border-bottom:1px solid var(--line)}
   .shelf-top b{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.09em;
     text-transform:uppercase;color:var(--ink-2)}
   .shelf-top span{font-size:12px;color:var(--muted)}
@@ -294,6 +303,8 @@
 
 
 
+<a class="nav" id="nav" href="#library">library <b id="navCount"></b></a>
+
 <main class="stage">
   <section class="lane">
     <div class="thread" id="thread">
@@ -306,8 +317,8 @@
 <b>   | 1 |   | 2 |   | 3 |   -->  what never changed     -->  client.ts</b>
 <b>   +---+   +---+   +---+        what moved on its own</b></pre></div>
           <div class="chips" id="chips"></div>
-          <section class="shelf" id="shelf" hidden></section>
         </section>
+        <section class="shelf" id="shelf" hidden></section>
         <div id="turns"></div>
       </div>
     </div>
@@ -591,6 +602,27 @@ fetch("/api/flows").then(r => r.json()).then(flows => {
 });
 // the shelf. these are already learned, so opening one is a fetch, not a
 // forty second capture - which is also what makes it demoable.
+// the shelf lives at #library. keeping it off the front page means the
+// background is allowed to be the background.
+function route() {
+  const on = location.hash === "#library";
+  document.body.classList.toggle("library", on);
+  $("nav").innerHTML = on
+    ? "&larr; back"
+    : `library <b id="navCount">${libCount || ""}</b>`;
+  if (on) $("thread").scrollTo({ top: 0 });
+}
+addEventListener("hashchange", route);
+$("nav").onclick = (e) => {
+  if (location.hash === "#library") {
+    e.preventDefault();
+    history.replaceState(null, "", location.pathname);
+    route();
+  }
+};
+
+let libCount = 0;
+
 async function loadLibrary() {
   let items = [];
   try {
@@ -598,6 +630,7 @@ async function loadLibrary() {
   } catch { return; }
   if (!items.length) return;
 
+  libCount = items.length;
   const shelf = $("shelf");
   shelf.hidden = false;
   shelf.innerHTML =
@@ -608,6 +641,7 @@ async function loadLibrary() {
     const card = e.target.closest(".card");
     if (card) openApi(card.dataset.flow);
   };
+  route();
 }
 
 function cardHtml(it) {
@@ -637,6 +671,9 @@ async function openApi(name) {
   }
   clientSrc = await (await fetch(`/api/client?flow=${flow}`)).text();
 
+  history.replaceState(null, "", location.pathname);
+  document.body.classList.remove("library");
+  $("nav").innerHTML = `library <b id="navCount">${libCount || ""}</b>`;
   $("hero").classList.add("gone");
   dock(true);
   pLive.open = false;
@@ -741,6 +778,7 @@ function start(name) {
   }
 
   $("prompt").value = "";
+  document.body.classList.remove("library");
   if (es) es.close();
   count = 0; lastReplay = ""; clientSrc = ""; params = []; t0 = Date.now();
 
