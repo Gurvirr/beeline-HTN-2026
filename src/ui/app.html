@@ -231,8 +231,13 @@
   body:not(.running) .box input{font-size:17px;padding:13px 0}
   body:not(.running) .go{width:44px;height:44px;font-size:17px}
 
+  /* these two matter - cloud is what gives you the live browser, and the
+     cache is the escape hatch when a live run would be too slow. but they
+     are settings, not the point, so they only surface once you are in the
+     box. */
   .opts{display:flex;gap:18px;justify-content:center;margin-top:12px;color:var(--muted);
-    font-size:12.5px}
+    font-size:12.5px;opacity:0;pointer-events:none;transition:opacity .16s}
+  .composer:focus-within .opts,body.running .opts{opacity:1;pointer-events:auto}
   .opts label{display:flex;gap:7px;align-items:center;cursor:pointer}
   .opts input{accent-color:var(--ink)}
   a{color:var(--ink);text-decoration-color:var(--yellow-deep);text-underline-offset:2px}
