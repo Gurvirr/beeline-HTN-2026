@@ -76,6 +76,8 @@
     font-size:clamp(30px,4.4vw,52px);margin:0 0 14px;letter-spacing:-.005em;
     line-height:1.08;color:var(--ink)}
   .hero h1 mark{background:var(--yellow);color:var(--ink);padding:0 8px;font-weight:700}
+  .hero h1 .nb{white-space:nowrap}
+  .hero h1{text-wrap:balance}
   .hero p{color:var(--ink-2);margin:0 auto 28px;max-width:72ch;font-size:15px;line-height:1.5}
   .hero.gone{display:none}
 
@@ -256,7 +258,7 @@
     <div class="thread" id="thread">
       <div class="inner">
         <section class="hero" id="hero">
-          <h1>Turn any website into an <mark>API</mark>.</h1>
+          <h1>Any website, <span class="nb">as an <mark>API</mark>.</span></h1>
           <p>Name a site. Beeline uses it once and writes you the client.</p>
 <div class="scroller"><pre class="diagram"><i>    use it three times             line them up             compile</i>
 <b>   +---+   +---+   +---+        what moved with you</b>
