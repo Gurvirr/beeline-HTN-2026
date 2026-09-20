@@ -24,6 +24,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/run") return runPipeline(res, url);
     if (url.pathname === "/api/new") return await makeFlow(req, res);
     if (url.pathname === "/api/try") return await tryIt(res, url);
+    if (url.pathname === "/api/library") return await serveLibrary(res);
     if (url.pathname === "/api/the-old-way") return await theOldWay(res, url);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
@@ -86,6 +87,47 @@ async function serveText(
 // run the api we just learned, here and now. the brain gives you a public url,
 // but that needs a deploy — and the point of the panel is to show the thing
 // works the second it is built.
+// everything beeline has ever learned, as a catalogue. the brain holds the
+// same thing behind /apis once a spec is registered; this reads the specs on
+// disk so the shelf is populated whether or not anything has been deployed.
+async function serveLibrary(res: import("node:http").ServerResponse) {
+  let files: string[] = [];
+  try {
+    files = (await readdir("out")).filter((f) => f.endsWith(".spec.json"));
+  } catch {
+    return json(res, []);
+  }
+
+  const items = [];
+  for (const f of files) {
+    try {
+      const spec = JSON.parse(await readFile(join("out", f), "utf8"));
+      const named = spec.fields.filter((x: any) => x.kind === "param" && x.boundTo);
+      items.push({
+        flow: spec.flow,
+        host: new URL(spec.target.urlTemplate).host,
+        method: spec.target.method,
+        path: new URL(spec.target.urlTemplate).pathname,
+        mode: spec.mode ?? "api",
+        params: [...new Set(named.filter((x: any) => !x.optional).map((x: any) => x.boundTo))],
+        probed: [...new Set(named.filter((x: any) => x.optional).map((x: any) => x.boundTo))],
+        counts: {
+          static: spec.fields.filter((x: any) => x.kind === "static").length,
+          volatile: spec.fields.filter((x: any) => x.kind === "volatile").length,
+        },
+        bootstrap: spec.bootstrap.length,
+        learnedAt: spec.meta.generatedAt,
+        browserMs: spec.meta.browserMs ?? 0,
+      });
+    } catch {
+      // a half-written spec shouldn't take the shelf down with it
+    }
+  }
+
+  items.sort((a, b) => String(b.learnedAt).localeCompare(String(a.learnedAt)));
+  json(res, items);
+}
+
 async function tryIt(res: import("node:http").ServerResponse, url: URL) {
   const flow = url.searchParams.get("flow");
   if (!flow) return json(res, { error: "need a flow" }, 400);

@@ -62,12 +62,11 @@
     overflow-y:auto;padding:14px}
   body.running .rail{display:block}
   .thread{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;background:transparent}
-  /* before a run there is nothing to scroll, so stop pretending: centre the
-     headline and the box together as one block */
-  body:not(.running) .lane{justify-content:flex-start}
-  body:not(.running) .thread{flex:0 1 auto;overflow:visible}
-  body:not(.running) .inner{padding-top:9vh;padding-bottom:0}
-  body:not(.running) .composer{margin-top:auto;padding-bottom:7vh}
+  /* the shelf makes the empty state taller than the viewport, so the thread
+     scrolls here exactly like it does during a run and the box stays put at
+     the bottom. it used to size itself assuming the page was short, which
+     left the cards running underneath the composer. */
+  body:not(.running) .inner{padding-top:7vh;padding-bottom:12px}
   .inner{max-width:730px;margin:0 auto;padding:26px 22px 8px}
 
   /* ---- the empty state: the call to action is the page ---- */
@@ -91,6 +90,31 @@
 
   /* parked: the prompt is the way in for now */
   .chips{display:none}
+
+  /* ---- the shelf: every api it has learned, callable without relearning ---- */
+  .shelf{margin-top:34px;text-align:left}
+  .shelf-top{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;
+    padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .shelf-top b{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-2)}
+  .shelf-top span{font-size:12px;color:var(--muted)}
+  .shelf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:9px}
+  .card{background:var(--surface);border:1px solid var(--line-2);border-radius:3px;
+    padding:11px 12px;cursor:pointer;text-align:left;font-family:var(--mono);
+    transition:.1s;display:flex;flex-direction:column;gap:5px}
+  .card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--yellow)}
+  .card-top{display:flex;align-items:baseline;gap:8px}
+  .card-name{font-weight:700;font-size:14px;color:var(--ink)}
+  .card-mode{margin-left:auto;font-size:10.5px;color:var(--muted)}
+  .card-mode.html{color:var(--wing)}
+  .card-host{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .card-path{font-size:11.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .card-args{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+  .arg{font-size:10.5px;background:var(--yellow);color:var(--ink);padding:1px 5px;border-radius:2px}
+  .arg.opt{background:transparent;color:var(--muted);border:1px solid var(--line-2)}
+  .card-none{font-size:10.5px;color:var(--muted)}
   .chip{font-family:var(--mono);font-weight:500;font-size:13px;background:var(--paper);
     border:1px solid var(--line-2);border-radius:3px;padding:7px 14px;cursor:pointer;
     color:var(--ink-2);transition:.1s}
@@ -216,7 +240,10 @@
     padding:5px 5px 5px 14px;transition:.12s}
   .box::before{content:"\25b8";color:var(--yellow-deep);font-size:13px;flex-shrink:0}
   .box:focus-within{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--yellow)}
-  .box input{flex:1;border:0;outline:0;font-family:var(--mono);font-weight:500;
+  /* a flex item will not shrink below its intrinsic width by default, and an
+     input's intrinsic width is about twenty characters - without this the box
+     refuses to narrow and pushes the send button off the edge */
+  .box input{flex:1;min-width:0;border:0;outline:0;font-family:var(--mono);font-weight:500;
     font-size:14px;color:var(--ink);background:transparent;padding:9px 0}
   .box input::placeholder{color:var(--muted)}
   .go{background:var(--yellow);border:1px solid var(--ink);border-radius:3px;
@@ -279,6 +306,7 @@
 <b>   | 1 |   | 2 |   | 3 |   -->  what never changed     -->  client.ts</b>
 <b>   +---+   +---+   +---+        what moved on its own</b></pre></div>
           <div class="chips" id="chips"></div>
+          <section class="shelf" id="shelf" hidden></section>
         </section>
         <div id="turns"></div>
       </div>
@@ -555,11 +583,68 @@ let elThink, elThinkN, elDiff, elDiffN, elWire, elWireN, elTop, elSub, elBuilt;
 let elBar, elPhase, done01 = 0, totalRuns = 3;
 let pLive, pLiveBody, pLiveR, pTry, pTryBody;
 
+loadLibrary();
 fetch("/api/flows").then(r => r.json()).then(flows => {
   known = flows;
   $("chips").innerHTML = flows.map(f => `<button class="chip" data-flow="${f}">${f}</button>`).join("");
   $("chips").onclick = (e) => { const f = e.target.dataset.flow; if (f) { $("prompt").value = f; start(f); } };
 });
+// the shelf. these are already learned, so opening one is a fetch, not a
+// forty second capture - which is also what makes it demoable.
+async function loadLibrary() {
+  let items = [];
+  try {
+    items = await (await fetch("/api/library")).json();
+  } catch { return; }
+  if (!items.length) return;
+
+  const shelf = $("shelf");
+  shelf.hidden = false;
+  shelf.innerHTML =
+    `<div class="shelf-top"><b>learned</b><span>${items.length} ${
+      items.length === 1 ? "api" : "apis"} · ready to call</span></div>
+     <div class="shelf-grid">${items.map(cardHtml).join("")}</div>`;
+  shelf.querySelector(".shelf-grid").onclick = (e) => {
+    const card = e.target.closest(".card");
+    if (card) openApi(card.dataset.flow);
+  };
+}
+
+function cardHtml(it) {
+  const args = [
+    ...it.params.map(p => `<span class="arg">${esc(p)}</span>`),
+    ...it.probed.map(p => `<span class="arg opt">${esc(p)}?</span>`),
+  ].join("");
+  return `<button class="card" data-flow="${esc(it.flow)}">
+    <div class="card-top"><span class="card-name">${esc(it.flow)}</span>
+      <span class="card-mode ${it.mode}">${it.mode === "html" ? "page" : "api"}</span></div>
+    <div class="card-host">${esc(it.host)}</div>
+    <div class="card-path">${esc(it.method)} ${esc(it.path)}</div>
+    <div class="card-args">${args || '<span class="card-none">no arguments</span>'}</div>
+  </button>`;
+}
+
+// open one straight into the try panel, skipping the pipeline entirely
+async function openApi(name) {
+  flow = name;
+  params = []; paramTypes = {}; paramDefaults = {}; clientSrc = "";
+
+  const spec = await (await fetch(`/api/spec?flow=${flow}`)).json();
+  for (const f of spec.fields.filter(f => f.kind === "param" && f.boundTo)) {
+    if (!params.includes(f.boundTo)) params.push(f.boundTo);
+    paramTypes[f.boundTo] = f.samples.every(s => s !== "" && !isNaN(Number(s))) ? "int" : "str";
+    paramDefaults[f.boundTo] = f.samples[f.samples.length - 1] ?? "";
+  }
+  clientSrc = await (await fetch(`/api/client?flow=${flow}`)).text();
+
+  $("hero").classList.add("gone");
+  dock(true);
+  pLive.open = false;
+  pLiveBody.innerHTML = `<div class="empty">already learned — nothing to capture</div>`;
+  renderTry();
+  scroll();
+}
+
 $("go").onclick = () => start($("prompt").value.trim());
 $("prompt").addEventListener("keydown", e => { if (e.key === "Enter") start($("prompt").value.trim()); });
 
@@ -868,7 +953,13 @@ function finish(ev) {
      <span class="badge heal">self-healing</span>
      <span class="headline">${ev.speedup}×</span>`;
   elSub.innerHTML = `<b>${ev.httpMs}ms</b> over HTTP instead of <b>${ev.browserMs}ms</b> through a browser — same data, nothing rendering a page.`;
+  pLive.open = false;
+  renderTry();
+  say("done — try it in the panel below", true);
+}
 
+// the try panel, shared by a fresh build and anything opened off the shelf
+function renderTry() {
   const fields = params.length
     ? params.map(p => {
         const t = paramTypes[p] ?? "str";
@@ -888,7 +979,6 @@ function finish(ev) {
 
   pTry.querySelector(".r").textContent = `${params.length || "no"} parameter${params.length === 1 ? "" : "s"}`;
   pTry.open = true;
-  pLive.open = false;
   pTryBody.innerHTML =
     `<div class="tryit">${fields}<button class="run" id="callit">Run it</button></div>
      <div class="curl"><code id="curlcode"></code><button class="copy" id="copycurl">copy</button></div>
@@ -906,7 +996,6 @@ function finish(ev) {
     e.target.textContent = "copied";
     setTimeout(() => (e.target.textContent = "copy"), 1400);
   };
-  say("done — try it in the panel below", true);
 }
 
 async function call() {
