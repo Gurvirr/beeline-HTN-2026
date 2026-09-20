@@ -25,9 +25,8 @@ const R = "\x1b[0m";
 
 function run(script: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["tsx", script, ...args], {
+    const child = spawn(process.execPath, ["--import", "tsx", script, ...args], {
       stdio: "inherit",
-      shell: process.platform === "win32",
     });
     child.on("exit", (code) =>
       code === 0 ? resolve() : reject(new Error(`${script} exited ${code}`)),

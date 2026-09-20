@@ -256,17 +256,18 @@ function runPipeline(res: import("node:http").ServerResponse, url: URL) {
   const send = (data: unknown) => res.write(`data: ${JSON.stringify(data)}\n\n`);
 
   const args = [
+    "--import",
     "tsx",
-    "--env-file-if-exists=.env",
     "src/learn.ts",
     `flows/${flow}.ts`,
     ...(cloud ? ["--cloud"] : []),
     ...(cached ? ["--from-cache"] : []),
   ];
 
-  const child = spawn("npx", args, {
+  // one node process per stage instead of npx -> npm -> tsx -> cmd.exe.
+  // the deep tree is what exhausts windows and fails with 0xC0000142.
+  const child = spawn(process.execPath, args, {
     env: { ...process.env, BEELINE_EVENTS: "1", FORCE_COLOR: "0" },
-    shell: process.platform === "win32",
   });
 
   let buffer = "";
