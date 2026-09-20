@@ -92,11 +92,15 @@
   .chips{display:none}
 
   /* ---- the way in ---- */
-  .nav{position:fixed;top:16px;right:20px;z-index:3;font-family:var(--mono);font-size:12.5px;
-    font-weight:500;color:var(--muted);text-decoration:none;padding:5px 11px;border-radius:3px;
-    border:1px solid transparent;transition:.12s;background:var(--paper)}
-  .nav:hover{color:var(--ink);border-color:var(--line-2)}
+  .nav{position:fixed;top:16px;right:20px;z-index:3;display:flex;gap:4px}
+  .nav a{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--muted);
+    text-decoration:none;padding:5px 11px;border-radius:3px;border:1px solid transparent;
+    transition:.12s;background:var(--paper)}
+  .nav a:hover{color:var(--ink);border-color:var(--line-2)}
   .nav b{font-weight:500;color:var(--yellow-deep)}
+  /* nothing to go back to until something is on screen */
+  #navHome{display:none}
+  body.running #navHome,body.library #navHome{display:block}
 
   /* ---- the shelf, on its own page so it stops sitting on the mark ---- */
   .shelf{text-align:left;padding-top:4vh}
@@ -303,7 +307,10 @@
 
 
 
-<a class="nav" id="nav" href="#library">library <b id="navCount"></b></a>
+<div class="nav">
+  <a id="navHome" href="#" title="start over">home</a>
+  <a id="nav" href="#library">library <b id="navCount"></b></a>
+</div>
 
 <main class="stage">
   <section class="lane">
@@ -620,6 +627,26 @@ $("nav").onclick = (e) => {
     route();
   }
 };
+
+// back to the empty page. without this, once a run has painted there is no
+// route back to the prompt - the hero stays hidden and you are stuck looking
+// at a result you have finished with.
+function home() {
+  if (es) es.close();
+  es = null;
+  flow = ""; params = []; clientSrc = ""; count = 0;
+  elBar = null; elPhase = null;
+  document.body.classList.remove("running", "library");
+  history.replaceState(null, "", location.pathname);
+  $("hero").classList.remove("gone");
+  $("turns").innerHTML = "";
+  $("dock").innerHTML = "";
+  $("status").classList.remove("on");
+  $("go").disabled = false;
+  route();
+  $("thread").scrollTo({ top: 0 });
+}
+$("navHome").onclick = (e) => { e.preventDefault(); home(); };
 
 let libCount = 0;
 

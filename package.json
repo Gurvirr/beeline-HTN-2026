@@ -13,17 +13,18 @@
     "diff": "tsx --env-file-if-exists=.env src/diff/run.ts",
     "learn": "tsx --env-file-if-exists=.env src/learn.ts",
     "ui": "tsx --env-file-if-exists=.env src/ui/server.ts",
-    "deploy": "tsx --env-file-if-exists=.env src/deploy/run.ts"
+    "deploy": "tsx --env-file-if-exists=.env src/deploy/run.ts",
+    "start": "tsx --env-file-if-exists=.env src/ui/server.ts"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^4.1.0",
     "node-html-parser": "^9.0.4",
-    "playwright": "^1.49.0"
+    "playwright": "^1.49.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260919.1",
     "@types/node": "^22.10.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   },
   "bin": {
