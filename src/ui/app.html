@@ -309,7 +309,7 @@ const field = (() => {
   const CW = 7, CH = 9, AR = CH / CW;   // a cell is taller than it is wide
   const RAMP = ".,-~:;=!*#$@";
   const LIVE = "01░▸─≡·";
-  const K2 = 7.2, DEPTH = 0.34;
+  const K2 = 7.2, DEPTH = 0.46;
 
   let cols = 0, rows = 0, dpr = 1, K1 = 0;
   let zbuf = null, cbuf = null, fbuf = null;
@@ -335,11 +335,13 @@ const field = (() => {
       for (let x = 0; x < W; x += STEP) {
         if (!on(x, y)) continue;
         const wx = (x - W / 2) / scale, wy = -(y - H / 2) / scale;
-        out.push([wx, wy, DEPTH, 1]);
+        // -z is toward the eye, so the lit face lives there and the wall
+        // trails away behind it
+        out.push([wx, wy, -DEPTH, 1]);
         // only the silhouette needs a wall; filling the interior would cost
-        // thousands of points that the z-buffer throws away anyway
+        // thousands of points the z-buffer throws away anyway
         if (!on(x - STEP, y) || !on(x + STEP, y) || !on(x, y - STEP) || !on(x, y + STEP)) {
-          for (let z = -DEPTH; z < DEPTH; z += DEPTH / 5) out.push([wx, wy, z, 0]);
+          for (let z = -DEPTH + DEPTH / 5; z <= DEPTH; z += DEPTH / 5) out.push([wx, wy, z, 0]);
         }
       }
     }
@@ -410,7 +412,7 @@ const field = (() => {
       zbuf[j] = ooz;
 
       // the wall darkens as it falls away from the face
-      const d = (q[2] + DEPTH) / (2 * DEPTH);
+      const d = 1 - (q[2] + DEPTH) / (2 * DEPTH);
       cbuf[j] = q[3]
         ? RAMP.length
         : 1 + Math.round(d * (RAMP.length - 5));
@@ -425,8 +427,8 @@ const field = (() => {
         if (!c) continue;
         const g = (c - 1) / (RAMP.length - 1);
         ctx.fillStyle = fbuf[j]
-          ? "rgba(201,154,0,.46)"
-          : "rgba(14,14,12," + (0.08 + g * 0.22).toFixed(3) + ")";
+          ? "rgba(201,154,0,.58)"
+          : "rgba(14,14,12," + (0.10 + g * 0.26).toFixed(3) + ")";
         ctx.fillText(RAMP[c - 1], xx * CW, yy * CH);
       }
     }
