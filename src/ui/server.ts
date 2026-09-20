@@ -27,7 +27,6 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/try") return await tryIt(res, url);
     if (url.pathname === "/api/library") return await serveLibrary(res);
     if (url.pathname === "/favicon.svg") return await serveFile(res, "favicon.svg", "image/svg+xml");
-    if (url.pathname === "/_fav") return await serveFile(res, "_fav.html", "text/html; charset=utf-8");
     if (url.pathname === "/api/the-old-way") return await theOldWay(res, url);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
