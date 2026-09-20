@@ -13,7 +13,7 @@
       "tag_4": "a@4"
     },
     "found": 10,
-    "why": "quote cards with author and tags"
+    "why": "quote entries with text, author, and tags"
   },
   "target": {
     "method": "GET",
@@ -58,7 +58,7 @@
   "unresolved": [],
   "meta": {
     "runs": 2,
-    "generatedAt": "2026-09-20T03:29:53.254Z",
+    "generatedAt": "2026-09-20T11:18:09.081Z",
     "browserMs": 852
   }
 }

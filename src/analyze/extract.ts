@@ -7,6 +7,7 @@
 // than a real endpoint, and we say so.
 
 import { parse } from "node-html-parser";
+import { emit } from "../events.js";
 
 export interface Extraction {
   // css selector for the repeating thing (a row, a card, a list item)
@@ -119,6 +120,11 @@ export async function planExtraction(
   goal: string,
 ): Promise<Extraction | null> {
   if (!KEY()) return null;
+  emit({
+    type: "think",
+    who: MODEL(),
+    doing: "no endpoint to recover — reading the page structure instead",
+  });
 
   const res = await fetch(`${BASE()}/chat/completions`, {
     method: "POST",
@@ -172,6 +178,21 @@ export async function planExtraction(
   plan.fields = Object.fromEntries(
     Object.entries(plan.fields).filter(([k]) => sample[k] !== ""),
   );
+
+  emit({
+    type: "think",
+    who: MODEL(),
+    doing: `picked ${plan.item} — ${found} of them on the page`,
+    detail: Object.keys(plan.fields).join(" "),
+  });
+  const dropped = Object.keys(json.fields).length - Object.keys(plan.fields).length;
+  if (dropped > 0) {
+    emit({
+      type: "think",
+      who: "checked",
+      doing: `${dropped} of its selectors extracted nothing — dropped`,
+    });
+  }
 
   return plan;
 }

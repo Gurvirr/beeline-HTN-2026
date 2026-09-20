@@ -728,6 +728,22 @@ const bee = (fly) => {
 };
 const scroll = () => $("thread").scrollTo({ top: $("thread").scrollHeight, behavior: "smooth" });
 
+// a model said something. kept visually apart from the measured steps,
+// because which is which is the whole point.
+function think(who, doing, detail) {
+  if (!elThink) return;
+  const det = detail ? `<span class="det">${esc(detail)}</span>` : "";
+  const d = document.createElement("div");
+  d.className = "step ai";
+  d.innerHTML = `<span class="dot">~</span><span><span class="who">${esc(who)}</span>${esc(doing)}${det}</span>`;
+  elThink.appendChild(d);
+  elThinkN.textContent = `${elThink.childElementCount} steps`;
+  const fold = elThink.closest(".fold");
+  fold.hidden = false;
+  fold.open = true;
+  scroll();
+}
+
 function say(html, key) {
   const d = document.createElement("div");
   d.className = "step" + (key ? " key" : "");
@@ -885,7 +901,10 @@ async function learnNew(asked) {
   $("prompt").value = res.flow;
   start(res.flow);
   // say what it decided, once the turn exists
-  setTimeout(() => say(`never seen that site — ${esc(res.why)}`), 60);
+  setTimeout(() => {
+    think(res.model || "planner", `never seen that site — ${res.why}`,
+          `${res.how === "url" ? "vary" : "drive"} ${res.values.join(" ")}`);
+  }, 60);
 }
 
 // asked for something we haven't learned. this is a real answer, not an error
@@ -952,17 +971,7 @@ function handle(ev) {
       (lastReplay ? ` · <a href="${lastReplay}" target="_blank">watch the replay</a>` : "") + `</div>`;
   }
 
-  if (ev.type === "think") {
-    const det = ev.detail ? `<span class="det">${esc(ev.detail)}</span>` : "";
-    const d = document.createElement("div");
-    d.className = "step ai";
-    d.innerHTML = `<span class="dot">~</span><span><span class="who">${esc(ev.who)}</span>${esc(ev.doing)}${det}</span>`;
-    if (elThink) {
-      elThink.appendChild(d);
-      elThinkN.textContent = `${elThink.childElementCount} steps`;
-      scroll();
-    }
-  }
+  if (ev.type === "think") think(ev.who, ev.doing, ev.detail);
 
   if (ev.type === "spec") { step(0.72, "comparing the runs"); loadSpec(); }
   if (ev.type === "client") { step(0.88, "writing the client"); loadClient(); }

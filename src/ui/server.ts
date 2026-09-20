@@ -192,7 +192,15 @@ export default flow;
 `;
 
   await writeFile(file, source);
-  json(res, { flow: name, how: p.how, why: p.why, values: p.values });
+  // plan() runs in this process, so its thinking cannot reach the run
+  // stream. hand it back with the response instead and let the ui show it.
+  json(res, {
+    flow: name,
+    how: p.how,
+    why: p.why,
+    values: p.values,
+    model: process.env.LLM_MODEL ?? "gpt-4o-mini",
+  });
 }
 
 function readJson(req: import("node:http").IncomingMessage): Promise<unknown> {
