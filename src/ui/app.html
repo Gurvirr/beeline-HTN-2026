@@ -98,9 +98,10 @@
     transition:.12s;background:var(--paper)}
   .nav a:hover{color:var(--ink);border-color:var(--line-2)}
   .nav b{font-weight:500;color:var(--yellow-deep)}
-  /* nothing to go back to until something is on screen */
+  /* home clears a run. being in the library is not a run, and back already
+     leaves it - showing both there gave two controls that did the same thing. */
   #navHome{display:none}
-  body.running #navHome,body.library #navHome{display:block}
+  body.running #navHome{display:block}
 
   /* ---- the shelf, on its own page so it stops sitting on the mark ---- */
   .shelf{text-align:left;padding-top:4vh}
@@ -271,6 +272,22 @@
   .run:hover{background:var(--yellow-hot)}
   .run:active{box-shadow:0 0 0 var(--ink);transform:translate(2px,2px)}
   .run:disabled{opacity:.35;cursor:default}
+  /* the generated file. in the rail it is a preview; expanded it is the
+     thing you would actually read, with room for the longest line. */
+  .codebox{margin-top:11px;border:1px solid var(--line);border-radius:3px;overflow:hidden;
+    background:var(--surface)}
+  .code-top{display:flex;align-items:center;gap:8px;padding:7px 9px;
+    border-bottom:1px solid var(--line);background:var(--paper)}
+  .code-top .fname{font-size:12px;font-weight:600;color:var(--ink)}
+  .code-top .lines{font-size:10.5px;color:var(--muted);margin-right:auto}
+  .codebox pre{border:0;border-radius:0;max-height:210px;background:var(--surface)}
+  .codebox.big{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:min(980px,86vw);z-index:60;border:2px solid var(--ink);
+    box-shadow:0 24px 70px -24px rgba(14,14,12,.45)}
+  .codebox.big pre{max-height:min(680px,72vh);font-size:12.5px;line-height:1.55}
+  .codebox.big::before{content:"";position:fixed;inset:0;z-index:-1;
+    background:rgba(250,250,248,.72)}
+
   .resline{font-size:11.5px;color:var(--muted);margin-bottom:7px}
   .resline b{color:var(--green);font-weight:600} .resline b.bad{color:var(--red)}
 
@@ -1128,9 +1145,15 @@ function renderTry() {
     `<div class="tryit">${fields}<button class="run" id="callit">Run it</button></div>
      <div class="curl"><code id="curlcode"></code><button class="copy" id="copycurl">copy</button></div>
      <div id="callout"></div>
-     <details class="fold" style="border:0;margin-top:10px">
-       <summary style="padding-left:0">the client it wrote</summary>
-       <div class="fold-body" style="padding-left:0"><pre>${esc(clientSrc)}</pre></div></details>`;
+     <div class="codebox" id="codebox">
+       <div class="code-top">
+         <span class="fname">${esc(flow)}.client.ts</span>
+         <span class="lines">${clientSrc.split("\n").length} lines · no dependencies</span>
+         <button class="copy" id="copycode">copy</button>
+         <button class="copy" id="zoomcode">expand</button>
+       </div>
+       <pre id="codepre">${esc(clientSrc)}</pre>
+     </div>`;
   const paintCurl = () => ($("curlcode").textContent = curlFor());
   paintCurl();
   for (const p of params) $(`p_${p}`)?.addEventListener("input", paintCurl);
@@ -1141,6 +1164,27 @@ function renderTry() {
     e.target.textContent = "copied";
     setTimeout(() => (e.target.textContent = "copy"), 1400);
   };
+
+  $("copycode").onclick = (e) => {
+    navigator.clipboard?.writeText(clientSrc);
+    e.target.textContent = "copied";
+    setTimeout(() => (e.target.textContent = "copy"), 1400);
+  };
+  // a click, not a hover - you need to scroll and select in here
+  $("zoomcode").onclick = (e) => {
+    const box = $("codebox");
+    const big = box.classList.toggle("big");
+    e.target.textContent = big ? "close" : "expand";
+  };
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const box = $("codebox");
+      if (box?.classList.contains("big")) {
+        box.classList.remove("big");
+        $("zoomcode").textContent = "expand";
+      }
+    }
+  });
 }
 
 function argOf(p) {
