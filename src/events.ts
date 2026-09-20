@@ -13,6 +13,7 @@ export type Event =
   // a model did something. worth showing: it is the part people assume is
   // magic, and watching it get checked is the whole argument.
   | { type: "think"; who: string; doing: string; detail?: string }
+  | { type: "summary"; text: string; who: string }
   | { type: "log"; line: string };
 
 const on = !!process.env.BEELINE_EVENTS;

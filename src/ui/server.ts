@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { plan } from "../capture/plan.js";
 import { execute } from "../runtime/execute.js";
+import { ask, primary } from "../llm.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4000);
@@ -279,13 +280,59 @@ function runPipeline(res: import("node:http").ServerResponse, url: URL) {
   child.stdout.on("data", consume);
   child.stderr.on("data", consume);
 
-  child.on("exit", (code) => {
+  child.on("exit", async (code) => {
+    // one closing line that answers what was asked, rather than making the
+    // reader assemble it from a spec table
+    if (code === 0) {
+      const line = await summarise(flow, url.searchParams.get("q") ?? flow);
+      if (line) send({ type: "summary", text: line, who: primary().model });
+    }
     send({ type: "done", code });
     res.end();
   });
 
   // if the browser tab goes away, don't leave a pipeline running
   res.on("close", () => child.kill());
+}
+
+// say what just happened, in one sentence, against what was asked for.
+// everything here is read off the finished spec - the model is writing, not
+// deciding.
+async function summarise(flow: string, asked: string): Promise<string | null> {
+  const p = primary();
+  if (!p.key) return null;
+
+  let spec: any;
+  try {
+    spec = JSON.parse(await readFile(join("out", `${flow}.spec.json`), "utf8"));
+  } catch {
+    return null;
+  }
+
+  const named = spec.fields.filter((f: any) => f.kind === "param" && f.boundTo);
+  const facts = [
+    `asked for: ${asked}`,
+    `endpoint: ${spec.target.method} ${spec.target.urlTemplate}`,
+    `mode: ${spec.mode ?? "recovered a json endpoint"}`,
+    `arguments: ${named.map((f: any) => f.boundTo + (f.optional ? " (found by probing)" : "")).join(", ") || "none"}`,
+    `values the site sent that we had to reproduce: ${
+      spec.fields.filter((f: any) => f.kind === "volatile").map((f: any) => f.name).join(", ") || "none"}`,
+    `handshake requests needed first: ${spec.bootstrap.length}`,
+  ].join("\n");
+
+  const raw = await ask(
+    p,
+    `You explain what a tool just did, to the person who asked for it.
+
+Two sentences, plain English, no marketing, no markdown or backticks. Name the endpoint it found and the
+arguments it takes. If something was found by probing rather than observed, say
+so. If a handshake was needed, say what for. Do not mention speed.`,
+    facts,
+    { maxTokens: 160, timeoutMs: 20_000 },
+  ).catch(() => null);
+
+  // it still reaches for backticks even when told not to
+  return raw ? raw.trim().replace(/[`*]/g, "").replace(/\s+/g, " ").slice(0, 340) : null;
 }
 
 // what you'd have to do without beeline: launch a browser, load the page,

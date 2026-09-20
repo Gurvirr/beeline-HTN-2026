@@ -163,6 +163,9 @@
     padding:3px 9px 4px;box-shadow:2px 2px 0 var(--ink)}
   .built-sub{padding:7px 14px 12px;color:var(--ink-2);font-family:var(--sans);font-size:13px}
   .built-sub b{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500}
+  .built-sub .recap{margin-top:9px;padding-top:9px;border-top:1px solid var(--line);
+    color:var(--ink-2)}
+  .built-sub .tail{display:block;margin-top:5px;font-size:11px;color:var(--wing)}
 
   /* ---- ruled disclosures. the label sits in the rule, like a plotter key ---- */
   .fold{border-top:1px solid var(--line)}
@@ -225,8 +228,24 @@
   .panel>summary .lbl{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2)}
   .panel>summary .r{margin-left:auto;color:var(--muted);font-size:11px}
   .panel-body{padding:0 12px 12px}
-  iframe{width:100%;height:280px;border:1px solid var(--line);border-radius:3px;display:block;
-    background:var(--sunk)}
+  /* the live view is 400px wide in the rail, which is too small to read.
+     hover and it lifts into a floating window - the frame is a child of the
+     box, so moving onto the enlarged frame is not leaving the box, and it
+     stays up until you move off it properly. */
+  .livebox{position:relative;height:280px}
+  .livebox iframe{position:absolute;inset:0;width:100%;height:100%;
+    border:1px solid var(--line);border-radius:3px;display:block;background:var(--sunk);
+    transition:width .16s ease,height .16s ease,box-shadow .16s ease}
+  .livebox.big iframe{position:fixed;inset:auto;top:50%;left:50%;
+    transform:translate(-50%,-50%);width:min(1180px,80vw);height:min(760px,78vh);
+    z-index:60;border:2px solid var(--ink);box-shadow:0 24px 70px -24px rgba(14,14,12,.45)}
+  .livebox.big::before{content:"";position:fixed;inset:0;z-index:59;
+    background:rgba(250,250,248,.72)}
+  .livebox .hint{position:absolute;right:7px;bottom:7px;z-index:1;font-size:10.5px;
+    color:var(--muted);background:var(--paper);padding:1px 6px;border-radius:2px;
+    border:1px solid var(--line)}
+  .livebox.big .hint{display:none}
+  iframe{border:1px solid var(--line);border-radius:3px;display:block;background:var(--sunk)}
   .empty{color:var(--muted);padding:18px 0;font-size:12px;text-align:center}
 
   .tryit{display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
@@ -842,7 +861,13 @@ function start(name) {
   bee(true);
   if (cached) say("using the capture from last time");
 
-  const q = new URLSearchParams({ flow, cloud: $("cloud").checked ? "1" : "0", cached: cached ? "1" : "0" });
+  const q = new URLSearchParams({
+    flow,
+    cloud: $("cloud").checked ? "1" : "0",
+    cached: cached ? "1" : "0",
+    // what was actually asked for, so the closing line can answer it
+    q: name,
+  });
   es = new EventSource("/api/run?" + q);
   es.onmessage = (e) => handle(JSON.parse(e.data));
   es.onerror = () => { done(); es.close(); };
@@ -946,8 +971,15 @@ function handle(ev) {
     const what = Object.entries(ev.input).map(([k, v]) => `${k}=${v}`).join(" ");
     say(ev.run === 1 ? `ran the task with <b>${esc(what)}</b>` : `ran it again with <b>${esc(what)}</b>`);
     pLiveBody.innerHTML = ev.liveUrl
-      ? `<iframe src="${ev.liveUrl}" sandbox="allow-scripts allow-same-origin"></iframe>`
+      ? `<div class="livebox"><iframe src="${ev.liveUrl}" sandbox="allow-scripts allow-same-origin"></iframe><span class="hint">hover to enlarge</span></div>`
       : `<div class="empty">running locally — tick “run in the cloud” to watch</div>`;
+    const box = pLiveBody.querySelector(".livebox");
+    if (box) {
+      box.addEventListener("mouseenter", () => box.classList.add("big"));
+      // mouseleave does not fire when the pointer moves onto a descendant, and
+      // the enlarged frame is one - so this only fires on a real exit
+      box.addEventListener("mouseleave", () => box.classList.remove("big"));
+    }
   }
 
   if (ev.type === "exchange") {
@@ -976,6 +1008,14 @@ function handle(ev) {
   if (ev.type === "spec") { step(0.72, "comparing the runs"); loadSpec(); }
   if (ev.type === "client") { step(0.88, "writing the client"); loadClient(); }
   if (ev.type === "verified") { step(1, "done"); finish(ev); }
+  if (ev.type === "summary" && elSub) {
+    // sits under the timing line rather than replacing it - the number and
+    // the explanation are both worth having
+    const p = document.createElement("div");
+    p.className = "recap";
+    p.innerHTML = `${esc(ev.text)}<span class="tail">${esc(ev.who)}</span>`;
+    elSub.appendChild(p);
+  }
   if (ev.type === "done") {
     done();
     $("status").textContent = "";
