@@ -9,6 +9,7 @@ import { classify } from "./classify.js";
 import { resolve as resolveVolatile } from "./resolve.js";
 import { infer } from "./schema.js";
 import { planExtraction, extract as runExtraction } from "./extract.js";
+import { probe } from "./probe.js";
 import { emit } from "../events.js";
 
 const flowName = process.argv[2];
@@ -104,6 +105,17 @@ async function fromApi(flowName: string) {
       browserMs: median(targets.map((t) => t.t)),
     },
   };
+
+  // the site only ever sends what its own ui needs. ask the endpoint whether
+  // it takes more than that.
+  const extra = await probe(spec, (line) =>
+    console.log(`  [36m+[0m ${line}`),
+  );
+  if (extra.length) {
+    console.log(`
+  [36mprobed the endpoint[0m [2m— arguments the site never uses[0m`);
+    spec.fields.push(...extra.map((e) => e.field));
+  }
 
   await mkdir("out", { recursive: true });
   await writeFile(join("out", `${flowName}.spec.json`), JSON.stringify(spec, null, 2));

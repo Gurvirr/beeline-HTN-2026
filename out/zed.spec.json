@@ -86,6 +86,17 @@
         "icon-themes"
       ],
       "boundTo": "provides"
+    },
+    {
+      "location": "query",
+      "name": "filter",
+      "kind": "param",
+      "samples": [
+        "Cutiepro"
+      ],
+      "boundTo": "filter",
+      "optional": true,
+      "note": "free-text search — Cutiepro matched 1 of 638"
     }
   ],
   "bootstrap": [],
@@ -160,7 +171,7 @@
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-20T04:05:40.325Z",
-    "browserMs": 4157
+    "generatedAt": "2026-09-20T04:18:07.267Z",
+    "browserMs": 3576
   }
 }

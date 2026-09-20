@@ -98,6 +98,9 @@ export async function execute(
   const body: Record<string, string> = {};
 
   for (const f of spec.fields) {
+    // a probed parameter the caller didn't supply: leave it off entirely.
+    // sending ?filter= is not the same as not filtering.
+    if (f.optional && !params[f.boundTo ?? ""]) continue;
     if (f.location === "query") url.searchParams.set(f.name, value(f));
     if (f.location === "header") headers[f.name] = value(f);
     if (f.location === "body") body[f.name] = value(f);

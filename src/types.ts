@@ -107,6 +107,11 @@ export interface Field {
   boundTo?: string;
   // set when kind === "volatile": how to reproduce it
   source?: VolatileSource;
+  // the site never sent this one — we found it by probing the endpoint and
+  // kept it because it provably changed the answer. callers may omit it.
+  optional?: boolean;
+  // what probing showed it does, in a few words
+  note?: string;
 }
 
 // a request that must run before the target, to obtain session material
