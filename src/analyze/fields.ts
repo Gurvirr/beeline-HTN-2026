@@ -123,10 +123,15 @@ export function pickTarget(
   const requestOf = (x: Exchange) =>
     JSON.stringify(x.requestBody ?? "") + JSON.stringify(x.query);
 
+  // xhr and fetch are the obvious ones, but navigating straight at an endpoint
+  // makes it a document — and a document that parsed into json is data, not a
+  // page. that's the whole shape of a url-driven capture.
   const dataFetches = candidates.filter(
     (x) =>
-      (x.resourceType === "xhr" || x.resourceType === "fetch") &&
-      x.responseBody !== null,
+      x.responseBody !== null &&
+      (x.resourceType === "xhr" ||
+        x.resourceType === "fetch" ||
+        (x.resourceType === "document" && typeof x.responseBody === "object")),
   );
 
   // the input came back in the response: this request answered the question

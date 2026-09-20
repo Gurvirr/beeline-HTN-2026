@@ -1,5 +1,5 @@
 {
-  "flow": "films",
+  "flow": "scrapethissite-com",
   "origin": "https://www.scrapethissite.com",
   "target": {
     "method": "GET",
@@ -11,9 +11,9 @@
       "name": "accept",
       "kind": "static",
       "samples": [
-        "*/*",
-        "*/*",
-        "*/*"
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
       ]
     },
     {
@@ -28,32 +28,12 @@
     },
     {
       "location": "header",
-      "name": "referer",
-      "kind": "static",
-      "samples": [
-        "https://www.scrapethissite.com/pages/ajax-javascript/",
-        "https://www.scrapethissite.com/pages/ajax-javascript/",
-        "https://www.scrapethissite.com/pages/ajax-javascript/"
-      ]
-    },
-    {
-      "location": "header",
       "name": "user-agent",
       "kind": "static",
       "samples": [
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
-      ]
-    },
-    {
-      "location": "header",
-      "name": "x-requested-with",
-      "kind": "static",
-      "samples": [
-        "XMLHttpRequest",
-        "XMLHttpRequest",
-        "XMLHttpRequest"
       ]
     },
     {
@@ -71,11 +51,11 @@
       "name": "year",
       "kind": "param",
       "samples": [
-        "2010",
-        "2012",
+        "2013",
+        "2014",
         "2015"
       ],
-      "boundTo": "year"
+      "boundTo": "q"
     }
   ],
   "bootstrap": [],
@@ -111,7 +91,7 @@
   "unresolved": [],
   "meta": {
     "runs": 3,
-    "generatedAt": "2026-09-20T01:12:16.475Z",
-    "browserMs": 2294
+    "generatedAt": "2026-09-20T01:12:43.256Z",
+    "browserMs": 554
   }
 }

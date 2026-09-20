@@ -6,6 +6,7 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { plan } from "../capture/plan.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4000);
@@ -78,42 +79,54 @@ async function serveText(
   res.end(body);
 }
 
-// turn a url + a sentence into a flow file, so the pipeline can run on a site
+// turn a sentence into a flow file, so the pipeline can run against a site
 // nobody has written any code for. this is the "paste any url" path.
 async function makeFlow(
   req: import("node:http").IncomingMessage,
   res: import("node:http").ServerResponse,
 ) {
-  const body = await readJson(req);
-  const { url: target, task, values } = body as {
-    url: string;
-    task: string;
-    values: string[];
-  };
+  const { prompt } = (await readJson(req)) as { prompt?: string };
+  if (!prompt) return json(res, { error: "need a prompt" }, 400);
 
-  if (!target || !task || !Array.isArray(values) || values.length < 3) {
-    return json(res, { error: "need url, task, and 3 values" }, 400);
+  let p;
+  try {
+    p = await plan(prompt);
+  } catch (err) {
+    return json(res, { error: err instanceof Error ? err.message : String(err) }, 400);
   }
 
-  // the placeholder in the task is always {q} — one knob is enough, and it
-  // keeps the box simple for whoever is typing into it
-  const name = slug(target);
+  const name = slug(p.entry);
   const file = `flows/${name}.ts`;
+  const inputs = p.values.map((v) => ({ q: v }));
+
+  // url flows just navigate — no clicking, so nothing to misread. task flows
+  // hand the sentence to stagehand, which is slower and can miss.
+  const body =
+    p.how === "url" && p.vary
+      ? `  async run(page, input) {
+    const u = new URL(${JSON.stringify(p.entry)});
+    u.searchParams.set(${JSON.stringify(p.vary)}, input.q!);
+    await page.goto(u.toString(), { waitUntil: "networkidle", timeout: 45000 });
+  },`
+      : `  task: ${JSON.stringify(p.task ?? prompt)},`;
 
   const source = `// made from the dashboard — ${new Date().toISOString()}
+// "${prompt.replace(/"/g, "'")}"
+// ${p.why}
+
 import type { Flow } from "../src/types.js";
 
 const flow: Flow = {
   name: ${JSON.stringify(name)},
-  entry: ${JSON.stringify(target)},
-  inputs: ${JSON.stringify(values.map((v) => ({ q: v })))},
-  task: ${JSON.stringify(task)},
+  entry: ${JSON.stringify(p.entry)},
+  inputs: ${JSON.stringify(inputs)},
+${body}
 };
 export default flow;
 `;
 
   await writeFile(file, source);
-  json(res, { flow: name, file });
+  json(res, { flow: name, how: p.how, why: p.why, values: p.values });
 }
 
 function readJson(req: import("node:http").IncomingMessage): Promise<unknown> {

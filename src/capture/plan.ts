@@ -23,7 +23,16 @@ export interface Plan {
   why: string;
 }
 
-const KEY = () => process.env.GEMINI_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
+// one code path, three possible providers. openai, baseten and backboard all
+// speak the same request shape, so which one we're on is just env.
+//
+//   LLM_BASE_URL=https://inference.baseten.co/v1      (baseten)
+//   LLM_BASE_URL=https://api.openai.com/v1            (openai)
+//   LLM_API_KEY=...
+//   LLM_MODEL=...
+const BASE = () => process.env.LLM_BASE_URL ?? "https://api.openai.com/v1";
+const KEY = () => process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
+const MODEL = () => process.env.LLM_MODEL ?? "gpt-4o-mini";
 
 export async function plan(prompt: string): Promise<Plan> {
   const url = firstUrl(prompt);
@@ -37,10 +46,17 @@ export async function plan(prompt: string): Promise<Plan> {
 // common case where the page already has the parameter in its query string
 function guess(prompt: string, url: string): Plan {
   const parsed = new URL(url);
-  const params = [...parsed.searchParams.keys()];
+  const words = prompt.toLowerCase().split(/[^a-z0-9]+/);
+
+  // plumbing, not something anyone asks for
+  const PLUMBING = /^(ajax|format|callback|json|api|_|v|version|lang|locale|utm_)/i;
+
+  const params = [...parsed.searchParams.keys()].filter((k) => !PLUMBING.test(k));
 
   if (params.length) {
-    const vary = params[0]!;
+    // if they said "by year" and there's a ?year=, that's the one. otherwise
+    // take the first real parameter
+    const vary = params.find((k) => words.includes(k.toLowerCase())) ?? params[0]!;
     const seed = parsed.searchParams.get(vary) ?? "";
     return {
       entry: url,
@@ -80,14 +96,31 @@ Prefer "url" whenever the thing being varied can live in the query string — it
 values must be three real, plausible inputs for that site.`;
 
 async function askModel(prompt: string, url: string): Promise<Plan | null> {
-  const body = `${prompt}\n\nurl: ${url}`;
-  const raw = process.env.GEMINI_API_KEY
-    ? await gemini(body)
-    : await openai(body);
+  const res = await fetch(`${BASE()}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${KEY()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL(),
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: `${prompt}
+
+url: ${url}` },
+      ],
+    }),
+  });
+  if (!res.ok) return null;
+
+  const body = (await res.json()) as any;
+  const raw = body.choices?.[0]?.message?.content;
   if (!raw) return null;
 
-  const json = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, ""));
-  const values: string[] = Array.isArray(json.values) ? json.values.slice(0, 3) : [];
+  // models like to wrap json in a fence even when told not to
+  const json = JSON.parse(String(raw).replace(/^[^{]*/, "").replace(/[^}]*$/, ""));
+  const values: string[] = Array.isArray(json.values) ? json.values.slice(0, 3).map(String) : [];
   if (values.length < 3) return null;
 
   const entry =
@@ -101,45 +134,6 @@ async function askModel(prompt: string, url: string): Promise<Plan | null> {
     values,
     why: String(json.why ?? "").slice(0, 120),
   };
-}
-
-async function gemini(body: string): Promise<string | null> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ parts: [{ text: body }] }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    },
-  );
-  if (!res.ok) return null;
-  const j = (await res.json()) as any;
-  return j.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-}
-
-async function openai(body: string): Promise<string | null> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: body },
-      ],
-    }),
-  });
-  if (!res.ok) return null;
-  const j = (await res.json()) as any;
-  return j.choices?.[0]?.message?.content ?? null;
 }
 
 export function withParam(url: string, key: string, value: string): string {
