@@ -8,200 +8,205 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+  /* beeline reads a wire and lines runs up against each other. so the page is
+     built like a strip of tape: monospace first, ruled with box characters,
+     printed in two inks on warm paper. the serif shows up exactly once, for
+     the number that is the whole point. */
   :root{
-    /* one accent, used only where something is true: a parameter, a focus,
-       the primary action. everything else is paper and ink. */
-    --accent:#B0761A; --accent-ink:#8A5A0E; --accent-soft:#F8F0DF; --accent-edge:#E8D6AF;
-    --paper:#FCFBF9; --surface:#FFFFFF; --sunk:#F5F3EE;
-    --line:#E8E4DB; --line-2:#D8D2C5;
-    --ink:#17140F; --ink-2:#4C4638; --muted:#8C8575;
-    --green:#2F7D4F; --green-soft:#EDF5EF; --red:#B3402A; --amber:#9A7115;
-    --lift:0 1px 2px rgba(30,22,8,.04);
+    --paper:#F2EFE6; --surface:#FBF9F3; --sunk:#EAE5D8;
+    --line:#D9D2C0; --line-2:#C4BBA3; --rule:#B9AE92;
+    --ink:#14120C; --ink-2:#4A4434; --muted:#8A8169;
+
+    --honey:#E39A0C; --honey-deep:#A66B04; --honey-wash:#F7E9C8;
+    --wing:#4E7796; --wing-wash:#DDE7EE;      /* the bee's wings, for volatile */
+    --green:#2C7A4B; --red:#B23A1F;
+
     --display:"Fraunces",Georgia,serif;
     --sans:"DM Sans",system-ui,-apple-system,sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
-    font-size:14.5px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--mono);
+    font-size:13px;line-height:1.62;-webkit-font-smoothing:antialiased;
     display:flex;flex-direction:column;overflow:hidden}
 
-  /* ---- chrome ---- */
-  header{display:flex;align-items:center;gap:10px;padding:0 20px;height:52px;flex-shrink:0;
-    border-bottom:1px solid var(--line);background:var(--surface)}
-  .mark{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-.02em}
-  .tagline{color:var(--muted);font-size:12.5px;padding-left:12px;margin-left:2px;
-    border-left:1px solid var(--line)}
+  /* ---- status bar, not a nav ---- */
+  header{display:flex;align-items:center;gap:10px;padding:0 16px;height:44px;flex-shrink:0;
+    border-bottom:1px solid var(--rule);background:var(--surface)}
+  .mark{font-weight:600;font-size:14px;letter-spacing:.02em}
+  .mark::after{content:"";color:var(--line-2);margin-left:10px}
   .spacer{flex:1}
-  .status{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;
-    opacity:0;transition:opacity .2s}
+  .status{font-size:11.5px;color:var(--honey-deep);letter-spacing:.02em;opacity:0;transition:opacity .2s}
   .status.on{opacity:1}
-  .status::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
-    background:var(--accent);margin-right:7px;vertical-align:middle;animation:pulse 1.4s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-
-  .bee{width:24px;height:19px;flex-shrink:0}
+  .status::before{content:"\25b8 ";color:var(--honey)}
+  .bee{width:22px;height:17px;flex-shrink:0}
   .bee .wing{transform-origin:12px 7px;animation:flap .15s ease-in-out infinite alternate}
   .bee .wing.r{transform-origin:20px 7px}
-  .bee.resting .wing{animation:none;opacity:.55}
+  .bee.resting .wing{animation:none;opacity:.5}
   @keyframes flap{from{transform:rotate(-14deg) scaleY(.9)}to{transform:rotate(16deg)}}
-  @media (prefers-reduced-motion:reduce){.bee .wing,.status::before{animation:none}}
+  @media (prefers-reduced-motion:reduce){.bee .wing{animation:none}}
 
-  /* ---- two lanes: the run on the left, what it produced on the right ---- */
+  /* ---- lanes ---- */
   .stage{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
-  body.running .stage{grid-template-columns:minmax(0,1fr) 420px}
+  body.running .stage{grid-template-columns:minmax(0,1fr) 430px}
   .lane{display:flex;flex-direction:column;min-width:0;min-height:0}
-  .rail{display:none;border-left:1px solid var(--line);background:var(--surface);
-    overflow-y:auto;padding:16px}
+  .rail{display:none;border-left:1px solid var(--rule);background:var(--surface);
+    overflow-y:auto;padding:14px}
   body.running .rail{display:block}
-  /* narrow: the rail can't sit beside the lane, but hiding it would take the
-     try-it panel away entirely. stack it under the thread and let the page
-     scroll as one instead. */
+  .thread{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
+  .inner{max-width:730px;margin:0 auto;padding:26px 22px 8px}
+
+  /* ---- empty state: say what it does, in one diagram ---- */
+  .hero{padding:6vh 0 0;text-align:center}
+  .hero h1{font-family:var(--sans);font-weight:500;font-size:19px;letter-spacing:-.01em;
+    margin:0 0 6px;color:var(--ink)}
+  .hero p{color:var(--muted);margin:0 auto 24px;max-width:52ch;font-family:var(--sans);font-size:13.5px}
+  .hero.gone{display:none}
+  /* the diagram is type, not a code block: strip the pre chrome back off and
+     let it scroll inside its own box rather than dragging the page sideways */
+  .scroller{overflow-x:auto;max-width:100%;margin:0 0 26px;padding-bottom:2px}
+  pre.diagram{font-size:11px;line-height:1.12;color:var(--line-2);margin:0;padding:0;
+    background:none;border:0;border-radius:0;max-height:none;overflow:visible;
+    white-space:pre;display:inline-block;text-align:left}
+  pre.diagram b{color:var(--honey-deep);font-weight:400}
+  pre.diagram i{color:var(--ink-2);font-style:normal}
+  .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:12px;background:transparent;border:1px solid var(--line-2);
+    border-radius:3px;padding:5px 11px;cursor:pointer;color:var(--ink-2);transition:.1s}
+  .chip::before{content:"\00b7 ";color:var(--line-2)}
+  .chip:hover{background:var(--honey-wash);color:var(--honey-deep);border-color:var(--honey)}
+  .chip:hover::before{color:var(--honey)}
+
+  /* ---- turns ---- */
+  .turn-you{display:flex;justify-content:flex-end;margin:18px 0 14px}
+  .bubble{background:var(--ink);color:#F6F2E7;padding:6px 12px;border-radius:3px;
+    max-width:76%;font-size:12.5px}
+  .turn{display:flex;gap:10px;margin-bottom:12px}
+  .avatar{width:24px;height:24px;border-radius:3px;background:var(--surface);
+    border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0}
+  .avatar svg{width:15px;height:12px}
+  .turn-body{flex:1;min-width:0}
+
+  /* the card is a printed slip: square corners, ruled rows */
+  .built{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+  .built-top{display:flex;align-items:center;gap:8px;padding:11px 14px 0;flex-wrap:wrap}
+  .tick{color:var(--green);font-size:12px}
+  .kicker{font-size:11.5px;color:var(--muted);letter-spacing:.09em;text-transform:uppercase}
+  .name{font-weight:600;font-size:14px}
+  .badge{font-size:11px;color:var(--muted)}
+  .badge::before{content:"\00b7";margin-right:7px;color:var(--line-2)}
+  .badge.heal{color:var(--green)}
+  .headline{margin-left:auto;font-family:var(--display);font-weight:600;font-size:27px;
+    color:var(--honey-deep);letter-spacing:-.03em;line-height:1}
+  .built-sub{padding:7px 14px 12px;color:var(--ink-2);font-family:var(--sans);font-size:13px}
+  .built-sub b{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500}
+
+  /* ---- ruled disclosures. the label sits in the rule, like a plotter key ---- */
+  .fold{border-top:1px solid var(--line)}
+  .fold>summary{cursor:pointer;list-style:none;padding:8px 14px;display:flex;align-items:center;
+    gap:8px;font-size:12px;color:var(--ink-2);transition:background .1s}
+  .fold>summary::-webkit-details-marker{display:none}
+  .fold>summary:hover{background:var(--sunk)}
+  .fold>summary::before{content:"+";color:var(--honey);font-size:12px;width:9px}
+  .fold[open]>summary::before{content:"\2212"}
+  .fold>summary .n{margin-left:auto;font-size:11px;color:var(--muted)}
+  .fold-body{padding:2px 14px 14px}
+
+  /* the log gutter */
+  .think{border-left:1px solid var(--line-2);padding:2px 0 2px 14px;margin-left:3px}
+  .step{display:flex;gap:8px;padding:2px 0;color:var(--ink-2);font-size:12.5px;opacity:0;
+    transform:translateY(2px);animation:rise .26s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .step .dot{width:11px;flex-shrink:0;color:var(--line-2);text-align:center}
+  .step.key{color:var(--ink)}
+  .step.key .dot{color:var(--green)}
+  .step b{color:var(--honey-deep);font-weight:600}
+
+  /* ---- the diff. this is the product, so it gets the strongest treatment ---- */
+  table{border-collapse:collapse;width:100%;font-size:11.5px}
+  th{text-align:left;color:var(--muted);font-weight:400;padding:0 10px 6px 0;font-size:11px;
+    border-bottom:1px solid var(--line-2)}
+  td{padding:5px 10px 5px 0;white-space:nowrap;max-width:165px;overflow:hidden;
+    text-overflow:ellipsis;border-bottom:1px solid var(--line)}
+  tr.static td{color:var(--muted)}
+  tr.param td{color:var(--honey-deep);background:var(--honey-wash);font-weight:600}
+  tr.param td:first-child{box-shadow:inset 3px 0 0 var(--honey)}
+  tr.volatile td{color:var(--wing);background:var(--wing-wash)}
+  tr.volatile td:first-child{box-shadow:inset 3px 0 0 var(--wing)}
+  tr.src td{color:var(--wing);font-size:11px;border-bottom:0;padding-top:0;opacity:.85;background:none}
+  .tag{font-size:10.5px;color:inherit;opacity:.7}
+
+  pre{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink-2);
+    background:var(--sunk);border:1px solid var(--line);border-radius:3px;padding:11px 12px;
+    overflow:auto;max-height:290px}
+  .wire{max-height:190px;overflow:auto;font-size:11px}
+  .req{display:flex;gap:9px;padding:1px 0;color:var(--muted)}
+  .req .m{width:32px;color:var(--ink-2)}
+  .req .p{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .req .s{color:var(--green)} .req .s.bad{color:var(--red)}
+
+  /* ---- rail ---- */
+  .panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    margin-bottom:9px;overflow:hidden}
+  .panel>summary{cursor:pointer;list-style:none;padding:9px 12px;display:flex;align-items:center;gap:8px}
+  .panel>summary::-webkit-details-marker{display:none}
+  .panel>summary::before{content:"+";color:var(--honey);font-size:12px;width:9px}
+  .panel[open]>summary::before{content:"\2212"}
+  .panel>summary .lbl{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2)}
+  .panel>summary .r{margin-left:auto;color:var(--muted);font-size:11px}
+  .panel-body{padding:0 12px 12px}
+  iframe{width:100%;height:280px;border:1px solid var(--line);border-radius:3px;display:block;
+    background:var(--sunk)}
+  .empty{color:var(--muted);padding:18px 0;font-size:12px;text-align:center}
+
+  .tryit{display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+  .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px}
+  .field label{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+  .field input{font-family:var(--mono);font-size:12.5px;padding:7px 9px;border:1px solid var(--line-2);
+    border-radius:3px;background:var(--paper);color:var(--ink);outline:0;width:100%;transition:.1s}
+  .field input:focus{border-color:var(--honey);box-shadow:inset 0 0 0 1px var(--honey)}
+  .field label .type{color:var(--honey-deep);margin-left:4px}
+  .curl{display:flex;align-items:center;gap:8px;background:var(--ink);border-radius:3px;
+    padding:8px 10px;margin-bottom:10px;overflow:auto}
+  .curl code{font-size:11px;color:#E8E2D2;white-space:nowrap;flex:1}
+  .curl code::before{content:"$ ";color:var(--honey)}
+  .copy{background:transparent;border:1px solid #3A362B;border-radius:3px;padding:2px 7px;
+    font-family:var(--mono);font-size:10px;color:#9A927E;cursor:pointer;flex-shrink:0}
+  .copy:hover{border-color:var(--honey);color:var(--honey)}
+  .run{background:var(--honey);color:#2A1D04;border:0;border-radius:3px;padding:8px 15px;
+    font-family:var(--mono);font-weight:600;font-size:12.5px;cursor:pointer;transition:.1s}
+  .run:hover{background:var(--honey-deep);color:#FFF}
+  .run:disabled{opacity:.35;cursor:default}
+  .resline{font-size:11.5px;color:var(--muted);margin-bottom:7px}
+  .resline b{color:var(--green);font-weight:600} .resline b.bad{color:var(--red)}
+
+  /* ---- composer: a prompt line, literally ---- */
+  .composer{padding:10px 22px 16px;flex-shrink:0}
+  .box{display:flex;gap:8px;align-items:center;max-width:730px;margin:0 auto;background:var(--surface);
+    border:1px solid var(--line-2);border-radius:3px;padding:4px 4px 4px 12px;transition:.12s}
+  .box::before{content:"\25b8";color:var(--honey);font-size:12px;flex-shrink:0}
+  .box:focus-within{border-color:var(--honey);box-shadow:inset 0 0 0 1px var(--honey)}
+  .box input{flex:1;border:0;outline:0;font-family:var(--mono);font-size:13.5px;color:var(--ink);
+    background:transparent;padding:8px 0}
+  .box input::placeholder{color:var(--muted)}
+  .go{background:var(--ink);border:0;border-radius:3px;width:32px;height:32px;cursor:pointer;
+    color:#F6F2E7;font-size:13px;flex-shrink:0;transition:.1s}
+  .go:hover{background:var(--honey-deep)}
+  .go:disabled{opacity:.3;cursor:default}
+  .opts{display:flex;gap:16px;justify-content:center;margin-top:9px;color:var(--muted);font-size:11.5px}
+  .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .opts input{accent-color:var(--honey-deep)}
+  a{color:var(--honey-deep)}
+
   @media (max-width:1100px){
     body.running .stage{grid-template-columns:minmax(0,1fr);display:block;overflow-y:auto}
     body.running .lane{display:block}
     body.running .thread{overflow:visible}
-    body.running .rail{border-left:0;border-top:1px solid var(--line);
-      max-width:720px;margin:0 auto;background:transparent}
+    body.running .rail{border-left:0;border-top:1px solid var(--rule);
+      max-width:730px;margin:0 auto;background:transparent}
     body.running .composer{position:sticky;bottom:0;background:var(--paper)}
   }
-
-  .thread{flex:1;overflow-y:auto;min-height:0}
-  .inner{max-width:720px;margin:0 auto;padding:28px 24px 8px}
-
-  /* ---- the empty state. quiet. ---- */
-  .hero{padding:12vh 0 0;text-align:center}
-  .hero h1{font-family:var(--display);font-weight:500;font-size:clamp(26px,3.4vw,34px);
-    margin:0 0 12px;letter-spacing:-.025em;line-height:1.15;color:var(--ink)}
-  .hero p{color:var(--muted);margin:0 auto;max-width:46ch;font-size:14.5px}
-  .hero.gone{display:none}
-  .chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:26px}
-  .chip{font-family:var(--mono);font-size:11.5px;background:transparent;border:1px solid var(--line-2);
-    border-radius:6px;padding:5px 11px;cursor:pointer;color:var(--ink-2);transition:.12s}
-  .chip:hover{border-color:var(--ink-2);background:var(--surface)}
-
-  /* ---- turns ---- */
-  .turn-you{display:flex;justify-content:flex-end;margin:20px 0 14px}
-  .bubble{background:var(--ink);color:#F7F4EE;padding:8px 14px;border-radius:12px 12px 3px 12px;
-    max-width:76%;font-size:14px}
-  .turn{display:flex;gap:11px;margin-bottom:12px}
-  .avatar{width:26px;height:26px;border-radius:7px;background:var(--surface);
-    border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0}
-  .avatar svg{width:16px;height:13px}
-  .turn-body{flex:1;min-width:0}
-
-  .built{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .built-top{display:flex;align-items:baseline;gap:9px;padding:14px 16px 0;flex-wrap:wrap}
-  .tick{color:var(--green);font-size:12px;align-self:center}
-  .kicker{font-size:13px;color:var(--muted)}
-  .name{font-weight:600;font-size:15px;letter-spacing:-.01em}
-  .badge{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-  .badge::before{content:"\00b7";margin-right:8px;color:var(--line-2)}
-  .badge.heal{color:var(--green)}
-  /* the punchline. the only large number on the page. */
-  .headline{margin-left:auto;font-family:var(--display);font-weight:600;font-size:26px;
-    color:var(--ink);letter-spacing:-.03em;align-self:center}
-  .built-sub{padding:6px 16px 14px;color:var(--ink-2);font-size:13.5px}
-  .built-sub b{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:500}
-
-  /* disclosures. sentence case on purpose: uppercase mono on every label
-     flattens the hierarchy until nothing reads as more important than
-     anything else, which is what made this look generated. */
-  .fold{border-top:1px solid var(--line)}
-  .fold>summary{cursor:pointer;list-style:none;padding:9px 16px;display:flex;align-items:center;
-    gap:9px;font-size:13px;color:var(--ink-2);transition:background .12s}
-  .fold>summary::-webkit-details-marker{display:none}
-  .fold>summary:hover{background:var(--sunk)}
-  .fold>summary::before{content:"";width:5px;height:5px;border-right:1.5px solid var(--muted);
-    border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);margin-left:2px;transition:transform .15s}
-  .fold[open]>summary::before{transform:rotate(45deg)}
-  .fold>summary .n{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
-  .fold-body{padding:2px 16px 16px}
-
-  .think{border-left:1px solid var(--line);padding:2px 0 2px 16px;margin-left:2px}
-  .step{display:flex;gap:9px;padding:3px 0;color:var(--ink-2);font-size:13.5px;opacity:0;
-    transform:translateY(2px);animation:rise .28s cubic-bezier(.2,.8,.2,1) forwards}
-  @keyframes rise{to{opacity:1;transform:none}}
-  .step .dot{width:12px;flex-shrink:0;color:var(--line-2);font-size:11px;text-align:center}
-  .step.key{color:var(--ink)}
-  .step.key .dot{color:var(--green)}
-  .step b{color:var(--accent-ink);font-weight:500;font-family:var(--mono);font-size:12.5px}
-
-  table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11.5px}
-  th{text-align:left;color:var(--muted);font-weight:400;padding:0 10px 8px 0;font-size:10.5px}
-  td{padding:6px 10px 6px 0;white-space:nowrap;max-width:165px;overflow:hidden;
-    text-overflow:ellipsis;border-top:1px solid var(--line)}
-  tr.static td{color:var(--muted)}
-  tr.param td{color:var(--accent-ink);background:var(--accent-soft)}
-  tr.param td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
-  tr.volatile td{color:var(--amber)}
-  tr.src td{color:var(--amber);font-size:10.5px;border-top:0;padding-top:0;opacity:.8}
-  .tag{font-size:10px;color:var(--muted)}
-
-  pre{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink-2);
-    background:var(--sunk);border:1px solid var(--line);border-radius:7px;padding:12px 13px;
-    overflow:auto;max-height:300px}
-  .wire{max-height:200px;overflow:auto;font-family:var(--mono);font-size:11px}
-  .req{display:flex;gap:10px;padding:2px 0;color:var(--muted)}
-  .req .m{width:34px;color:var(--ink-2)}
-  .req .p{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .req .s{color:var(--green)} .req .s.bad{color:var(--red)}
-
-  /* ---- the rail ---- */
-  .panel{background:var(--surface);border:1px solid var(--line);border-radius:9px;
-    margin-bottom:10px;overflow:hidden}
-  .panel>summary{cursor:pointer;list-style:none;padding:10px 13px;display:flex;align-items:center;gap:9px}
-  .panel>summary::-webkit-details-marker{display:none}
-  .panel>summary::before{content:"";width:5px;height:5px;border-right:1.5px solid var(--muted);
-    border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
-  .panel[open]>summary::before{transform:rotate(45deg)}
-  .panel>summary .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
-    text-transform:uppercase;color:var(--muted)}
-  .panel>summary .r{margin-left:auto;color:var(--muted);font-size:11px;font-family:var(--mono)}
-  .panel-body{padding:0 13px 13px}
-  iframe{width:100%;height:290px;border:1px solid var(--line);border-radius:7px;display:block;
-    background:var(--sunk)}
-  .empty{color:var(--muted);padding:20px 0;font-size:12.5px;text-align:center}
-
-  .tryit{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:11px}
-  .field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px}
-  .field label{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-  .field input{font-family:var(--mono);font-size:12.5px;padding:8px 10px;border:1px solid var(--line-2);
-    border-radius:7px;background:var(--surface);color:var(--ink);outline:0;width:100%;transition:.12s}
-  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .field label .type{color:var(--accent-ink);margin-left:4px}
-  .curl{display:flex;align-items:center;gap:9px;background:var(--sunk);border:1px solid var(--line);
-    border-radius:7px;padding:8px 10px;margin-bottom:11px;overflow:auto}
-  .curl code{font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap;flex:1}
-  .copy{background:var(--surface);border:1px solid var(--line-2);border-radius:5px;padding:3px 8px;
-    font-family:var(--mono);font-size:10px;color:var(--muted);cursor:pointer;flex-shrink:0}
-  .copy:hover{border-color:var(--ink-2);color:var(--ink-2)}
-  .run{background:var(--ink);color:#F7F4EE;border:0;border-radius:7px;padding:9px 16px;
-    font-family:var(--sans);font-weight:500;font-size:13px;cursor:pointer;transition:.12s}
-  .run:hover{background:var(--accent-ink)}
-  .run:disabled{opacity:.35;cursor:default}
-  .resline{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:8px}
-  .resline b{color:var(--green);font-weight:500} .resline b.bad{color:var(--red)}
-
-  /* ---- composer ---- */
-  .composer{padding:12px 24px 18px;flex-shrink:0}
-  .box{display:flex;gap:8px;align-items:center;max-width:720px;margin:0 auto;background:var(--surface);
-    border:1px solid var(--line-2);border-radius:11px;padding:5px 5px 5px 15px;
-    box-shadow:var(--lift);transition:.14s}
-  .box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .box input{flex:1;border:0;outline:0;font-family:var(--sans);font-size:14.5px;color:var(--ink);
-    background:transparent;padding:9px 0}
-  .box input::placeholder{color:var(--muted)}
-  .go{background:var(--ink);border:0;border-radius:8px;width:34px;height:34px;cursor:pointer;
-    color:#F7F4EE;font-size:14px;flex-shrink:0;transition:.12s}
-  .go:hover{background:var(--accent-ink)}
-  .go:disabled{opacity:.3;cursor:default}
-  .opts{display:flex;gap:16px;justify-content:center;margin-top:11px;color:var(--muted);font-size:12px}
-  .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
-  .opts input{accent-color:var(--accent-ink)}
-  a{color:var(--accent-ink)}
-  @media (max-width:640px){.tagline{display:none}}
 </style>
 </head>
 <body>
@@ -226,8 +231,13 @@
       <div class="inner">
         <section class="hero" id="hero">
           <h1>Every website already has an API.</h1>
-          <p>Name one and what you want from it. Beeline uses it once, works out the call
-             underneath, and writes you a typed client.</p>
+          <p>Name one and what you want from it. Beeline uses it once, works out
+             the call underneath, and writes you a typed client.</p>
+<div class="scroller"><pre class="diagram">  <i>use it three times</i>        <i>line them up</i>          <i>compile</i>
+  <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b> <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b> <b>&#9484;&#9472;&#9472;&#9472;&#9488;</b>      what moved with you
+  <b>&#9474;</b> 1 <b>&#9474;</b> <b>&#9474;</b> 2 <b>&#9474;</b> <b>&#9474;</b> 3 <b>&#9474;</b>  &#9472;&#9656;  what never changed  &#9472;&#9656;  <i>client.ts</i>
+  <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b> <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b> <b>&#9492;&#9472;&#9516;&#9472;&#9496;</b>      what moved on its own
+    <b>&#9492;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9508;</b></pre></div>
           <div class="chips" id="chips"></div>
         </section>
         <div id="turns"></div>
