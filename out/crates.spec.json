@@ -1,0 +1,278 @@
+{
+  "flow": "crates",
+  "origin": "https://crates.io",
+  "target": {
+    "method": "GET",
+    "urlTemplate": "https://crates.io/api/v1/crates"
+  },
+  "fields": [
+    {
+      "location": "header",
+      "name": "accept",
+      "kind": "static",
+      "samples": [
+        "*/*",
+        "*/*",
+        "*/*"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "accept-language",
+      "kind": "static",
+      "samples": [
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9",
+        "en-US,en;q=0.9"
+      ]
+    },
+    {
+      "location": "header",
+      "name": "referer",
+      "kind": "volatile",
+      "samples": [
+        "https://crates.io/search?q=serde",
+        "https://crates.io/search?q=tokio",
+        "https://crates.io/search?q=clap"
+      ],
+      "source": {
+        "kind": "unresolved",
+        "note": "no source found in 3 of 3 runs"
+      }
+    },
+    {
+      "location": "header",
+      "name": "user-agent",
+      "kind": "static",
+      "samples": [
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "page",
+      "kind": "static",
+      "samples": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "per_page",
+      "kind": "static",
+      "samples": [
+        "10",
+        "10",
+        "10"
+      ]
+    },
+    {
+      "location": "query",
+      "name": "q",
+      "kind": "param",
+      "samples": [
+        "serde",
+        "tokio",
+        "clap"
+      ],
+      "boundTo": "q"
+    },
+    {
+      "location": "query",
+      "name": "sort",
+      "kind": "static",
+      "samples": [
+        "relevance",
+        "relevance",
+        "relevance"
+      ]
+    }
+  ],
+  "bootstrap": [],
+  "responseSchema": {
+    "type": "object",
+    "properties": {
+      "crates": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "versions": {
+              "type": "null"
+            },
+            "keywords": {
+              "type": "null"
+            },
+            "categories": {
+              "type": "null"
+            },
+            "badges": {
+              "type": "array",
+              "items": {
+                "type": "unknown"
+              }
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "downloads": {
+              "type": "number"
+            },
+            "recent_downloads": {
+              "type": "number"
+            },
+            "default_version": {
+              "type": "string"
+            },
+            "num_versions": {
+              "type": "number"
+            },
+            "yanked": {
+              "type": "boolean"
+            },
+            "max_version": {
+              "type": "string"
+            },
+            "newest_version": {
+              "type": "string"
+            },
+            "max_stable_version": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "homepage": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string"
+            },
+            "links": {
+              "type": "object",
+              "properties": {
+                "version_downloads": {
+                  "type": "string"
+                },
+                "versions": {
+                  "type": "string"
+                },
+                "owners": {
+                  "type": "string"
+                },
+                "owner_team": {
+                  "type": "string"
+                },
+                "owner_user": {
+                  "type": "string"
+                },
+                "reverse_dependencies": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version_downloads",
+                "versions",
+                "owners",
+                "owner_team",
+                "owner_user",
+                "reverse_dependencies"
+              ]
+            },
+            "exact_match": {
+              "type": "boolean"
+            },
+            "trustpub_only": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "updated_at",
+            "versions",
+            "keywords",
+            "categories",
+            "badges",
+            "created_at",
+            "downloads",
+            "recent_downloads",
+            "default_version",
+            "num_versions",
+            "yanked",
+            "max_version",
+            "newest_version",
+            "max_stable_version",
+            "description",
+            "homepage",
+            "documentation",
+            "repository",
+            "links",
+            "exact_match",
+            "trustpub_only"
+          ]
+        }
+      },
+      "meta": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "next_page": {
+            "type": "string"
+          },
+          "prev_page": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "total",
+          "next_page",
+          "prev_page"
+        ]
+      }
+    },
+    "required": [
+      "crates",
+      "meta"
+    ]
+  },
+  "unresolved": [
+    {
+      "location": "header",
+      "name": "referer",
+      "kind": "volatile",
+      "samples": [
+        "https://crates.io/search?q=serde",
+        "https://crates.io/search?q=tokio",
+        "https://crates.io/search?q=clap"
+      ],
+      "source": {
+        "kind": "unresolved",
+        "note": "no source found in 3 of 3 runs"
+      }
+    }
+  ],
+  "meta": {
+    "runs": 3,
+    "generatedAt": "2026-09-20T13:19:58.472Z",
+    "browserMs": 1111
+  }
+}
