@@ -144,7 +144,13 @@ export function withParam(url: string, key: string, value: string): string {
 }
 
 function firstUrl(text: string): string | null {
-  const m = text.match(/https?:\/\/[^\s"'<>]+/) ?? text.match(/\b[\w-]+\.[a-z]{2,}(?:\/[^\s"'<>]*)?/i);
+  // a bare domain can have any number of labels. matching only two turned
+  // hn.algolia.com/?q=hackathon into hn.algolia — the tld and the whole query
+  // string were dropped before the planner ever saw them, so it reported a
+  // url with no query parameter to vary and fell back to driving the page.
+  const m =
+    text.match(/https?:\/\/[^\s"'<>]+/) ??
+    text.match(/\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/[^\s"'<>]*)?/i);
   if (!m) return null;
   const raw = m[0].replace(/[.,)]+$/, "");
   try {
